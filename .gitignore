@@ -1,0 +1,9 @@
+# autogen grpc source
+chunkdemo.grpc.pb.cc
+chunkdemo.grpc.pb.h
+chunkdemo.pb.cc
+chunkdemo.pb.h
+
+# emacs temp and backup files
+*~
+#*#

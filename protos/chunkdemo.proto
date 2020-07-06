@@ -1,0 +1,32 @@
+// Demonstrates the serialization of an array from server to client
+// using gRPC
+
+syntax = "proto3";
+package chunkdemo;
+
+enum DataType
+{
+  INTEGER = 0;
+  DOUBLE = 1;
+}
+
+message Chunk
+{
+  string array_name = 1;
+  bytes payload = 2;
+  DataType value_type = 3;
+  string shape = 4;
+  int64 size = 5;
+}
+
+message DemoStreamRequest
+{
+  int32 chunk_size = 1;
+  int32 array_size = 2;
+  DataType array_type = 3;
+}
+
+service Demo{
+  // Send a series of chunks containing an array
+  rpc DownloadArray(DemoStreamRequest) returns (stream Chunk);
+}
