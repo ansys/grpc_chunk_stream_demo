@@ -4,42 +4,40 @@
 syntax = "proto3";
 package chunkdemo;
 
-message Empty {
+message Empty {}
 
-}
-
-enum DataType
-{
+enum DataType{
   INTEGER = 0;
   DOUBLE = 1;
 }
 
-message RepeatedInts
-{
+message RepeatedInts{
 repeated int32 ints = 1;
 }
 
-message Chunk
-{
+message Chunk{
   bytes payload = 1;
 }
 
-message StreamRequest
-{
+message StreamRequest{
   int32 chunk_size = 1;
   DataType array_type = 3;
 }
 
-message PopulateArrayRequest
-{
+message PopulateArrayRequest{
   int32 array_size = 1;
   DataType array_type = 2;
 }
 
 service ChunkDemo{
-  // Send a series of chunks containing an array
-  rpc DownloadArray(StreamRequest) returns (stream Chunk);
-  rpc DownloadArraySlow(StreamRequest) returns (RepeatedInts);
+  // Create an array within the server
   rpc PopulateArray(PopulateArrayRequest) returns (Empty);
+
+  // Send a stream of byte payloads containing the array
+  rpc DownloadArray(StreamRequest) returns (stream Chunk);
+
+  // Send the array to the client using repeated ints
+  rpc DownloadArraySlow(StreamRequest) returns (RepeatedInts);
+ 
 
 }

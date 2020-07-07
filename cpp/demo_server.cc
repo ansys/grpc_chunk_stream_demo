@@ -41,9 +41,9 @@ using chunkdemo::PopulateArrayRequest;
 
 #define DEFAULT_CHUNKSIZE 256*1024  // 256 kBps
 
-void	StrToVal( std::string strVal, int &ival) { ival = std::stoi( strVal);}
-void	StrToVal( std::string strVal, double &dval) { dval = std::stof( strVal);}
-void	StrToVal( std::string strVal, std::string &sval) { sval = strVal;}
+void StrToVal( std::string strVal, int &ival) { ival = std::stoi( strVal);}
+void StrToVal( std::string strVal, double &dval) { dval = std::stof( strVal);}
+void StrToVal( std::string strVal, std::string &sval) { sval = strVal;}
 
 
 template <typename T> T
@@ -66,24 +66,19 @@ GetMetadataValue( ServerContext* context, std::string name, T DefaultValue)
 
 // stream a series of chunks 
 inline void StreamChunks(ServerWriter<Chunk>* writer, int chunk_size,
-			 const void* array, int n_bytes,
-			 const char* array_name, DataType vtype)
-{
+			 const void* array, int n_bytes){
   char* bytes = (char*) array;
-    
+
   Chunk chunk;
-  // chunk.set_array_name(array_name);
-  // chunk.set_data_type(vtype);
-  // chunk.set_size(n_bytes);
   for (int c = 0; c < n_bytes; c += chunk_size) {
-    if (c + chunk_size > n_bytes) {
+    if (c + chunk_size > n_bytes) { // last chunk, send up to the end of the array
       chunk.set_payload(&bytes[c], n_bytes - c);
       writer->Write(chunk);
     }
-    else {
+    else {  // Send max chunk size (chunk_size)
       chunk.set_payload(&bytes[c], chunk_size);
       writer->Write(chunk);
-    }	
+    }
   }
 }
 
@@ -105,8 +100,8 @@ class ChunkServiceImpl final : public ChunkDemo::Service {
 		       Empty* writer) override{
 
     this->array_size = request->array_size();
-    std::cout << "Populated an int array with " << this->array_size
-	      << " ints" << std::endl;
+    // std::cout << "Populated an int array with " << this->array_size
+	      // << " ints" << std::endl;
     this->array = new int[this->array_size];
     for (int i=0; i<this->array_size; i++){
       array[i] = i;
@@ -121,8 +116,6 @@ class ChunkServiceImpl final : public ChunkDemo::Service {
   Status DownloadArray(ServerContext* context, const StreamRequest* request,
 		       ServerWriter<Chunk>* writer) override {
 
-    DataType vtype = DataType::INTEGER;
-
     // populate metadata
     context->AddInitialMetadata("size", std::to_string(this->array_size));
     context->AddInitialMetadata("datatype", "INT32");
@@ -130,15 +123,13 @@ class ChunkServiceImpl final : public ChunkDemo::Service {
     // Stream the array
     int n_bytes = this->array_size*sizeof(int);
     int chunk_size = GetMetadataValue<int>(context, "chunk_size", DEFAULT_CHUNKSIZE);
-    StreamChunks(writer, chunk_size, array, n_bytes, "DemoArray", vtype);
+    StreamChunks(writer, chunk_size, array, n_bytes);
 
     return Status::OK;
   }
 
   Status DownloadArraySlow(ServerContext* context, const StreamRequest* request,
 			   RepeatedInts* writer) override{
-
-    DataType vtype = DataType::INTEGER;
 
     // Send data
     int n = this->array_size;

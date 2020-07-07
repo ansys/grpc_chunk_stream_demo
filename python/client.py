@@ -41,18 +41,17 @@ class ChunkDemoClient:
     def request_array(self, chunk_size=DEFAULT_CHUNKSIZE):
         """Request an array from the server"""
         request = StreamRequest()
-        metadata = [('arr_sz', str(arr_sz)), ('chunk_size', str(chunk_size))]
+        metadata = [('chunk_size', str(chunk_size))]
         chunks = self._stub.DownloadArray(request, metadata=metadata)
         return self._parse_chunks(chunks, np.int32)
 
     def request_array_from_repeated(self):
         request = StreamRequest()
-        metadata = [('arr_sz', str(arr_sz))]
-        response = self._stub.DownloadArraySlow(request, metadata=metadata)
+        response = self._stub.DownloadArraySlow(request)
         return np.array(response.ints)
 
-    def populate_array(self, arr_sz):
-        request = PopulateArrayRequest(array_size=arr_sz)
+    def populate_array(self, array_size):
+        request = PopulateArrayRequest(array_size=array_size)
         return self._stub.PopulateArray(request)
 
     def _parse_chunks(self, chunks, dtype=None):
@@ -109,13 +108,15 @@ if __name__ == '__main__':
             num /= 1024.0
         return "%.1f%s%s" % (num, 'Yi', suffix)
 
+    # Start by initializing the array on the server
+    array_size = 20000000
+    client.populate_array(array_size)
+    print("Created an INT32 array on the server size", array_size)
 
     ###########################################################################
     ### Download using chunks
     ###########################################################################
     print('Testing with byte stream...')
-    arr_sz = 20000000
-    client.populate_array(arr_sz)
     n = 20
     out = timeit.timeit('client.request_array()',
                         setup='from __main__ import ' + ', '.join(locals()),
@@ -133,9 +134,8 @@ if __name__ == '__main__':
     ### Download using repeated messages
     ###########################################################################
     print('Testing with repeated messages...')
-    arr_sz = 1500000
-    client.populate_array(arr_sz)
-    n = 5
+    client.populate_array(array_size)
+    n = 3
     out = timeit.timeit('client.request_array_from_repeated()',
                         setup='from __main__ import ' + ', '.join(locals()),
                         number=n)

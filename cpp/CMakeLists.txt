@@ -35,6 +35,11 @@ else()
   add_definitions(-D_WIN32_WINNT=0x600)
 endif()
 
+if(POLICY CMP0077)
+  cmake_policy(SET CMP0077 NEW)
+endif()
+
+
 if(GRPC_AS_SUBMODULE)
   # One way to build a projects that uses gRPC is to just include the
   # entire gRPC project tree via "add_subdirectory".
@@ -85,6 +90,10 @@ else()
   set(_GRPC_CPP_PLUGIN_EXECUTABLE $<TARGET_FILE:gRPC::grpc_cpp_plugin>)
 endif()
 
+  # find threads.  See:
+  # https://stackoverflow.com/questions/62562627/prebuilding-grpc-and-find-package
+  find_package(Threads REQUIRED)
+
 # Proto file
 get_filename_component(hw_proto "../protos/chunkdemo.proto" ABSOLUTE)
 get_filename_component(hw_proto_path "${hw_proto}" PATH)
@@ -109,6 +118,7 @@ include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 # Targets greeter_(client|server)
 foreach(_target
+  demo_client
   demo_server)
   add_executable(${_target} "${_target}.cc"
     ${hw_proto_srcs}
