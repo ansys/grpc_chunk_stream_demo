@@ -11,6 +11,7 @@ chunkdemo.pb.*
 *__pycache__/
 
 # cmake
+cmake/
 
 # autogen python source
 chunkdemo_pb2*

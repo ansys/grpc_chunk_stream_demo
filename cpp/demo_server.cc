@@ -35,6 +35,33 @@ using chunkdemo::ChunkDemo;
 using chunkdemo::Chunk;
 using chunkdemo::StreamRequest;
 using chunkdemo::DataType;
+using chunkdemo::RepeatedInts;
+using chunkdemo::Empty;
+using chunkdemo::PopulateArrayRequest;
+
+#define DEFAULT_CHUNKSIZE 256*1024  // 256 kBps
+
+void	StrToVal( std::string strVal, int &ival) { ival = std::stoi( strVal);}
+void	StrToVal( std::string strVal, double &dval) { dval = std::stof( strVal);}
+void	StrToVal( std::string strVal, std::string &sval) { sval = strVal;}
+
+
+template <typename T> T
+GetMetadataValue( ServerContext* context, std::string name, T DefaultValue)
+{
+  T Val = DefaultValue;
+
+  auto mapMetaData = context->client_metadata();
+  auto iterMetaData = mapMetaData.find( name);
+
+  if ( iterMetaData != mapMetaData.end())
+    {
+      std::string	strVal = iterMetaData->second.data();
+      StrToVal( strVal, Val);
+    }
+  
+  return Val;
+}
 
 
 // stream a series of chunks 
@@ -45,9 +72,9 @@ inline void StreamChunks(ServerWriter<Chunk>* writer, int chunk_size,
   char* bytes = (char*) array;
     
   Chunk chunk;
-  chunk.set_array_name(array_name);
-  chunk.set_value_type(vtype);
-  chunk.set_size(n_bytes);
+  // chunk.set_array_name(array_name);
+  // chunk.set_data_type(vtype);
+  // chunk.set_size(n_bytes);
   for (int c = 0; c < n_bytes; c += chunk_size) {
     if (c + chunk_size > n_bytes) {
       chunk.set_payload(&bytes[c], n_bytes - c);
@@ -60,30 +87,71 @@ inline void StreamChunks(ServerWriter<Chunk>* writer, int chunk_size,
   }
 }
 
+template int GetMetadataValue<int>(ServerContext* context, std::string name,
+				   int DefaultValue);
+template double GetMetadataValue<double>(ServerContext* context, std::string name,
+					 double DefaultValue);
+
 
 // Logic and data behind the server's behavior.
 class ChunkServiceImpl final : public ChunkDemo::Service {
+
+  // Array to send to client
+  int *array;
+  int array_size;
+
+  Status PopulateArray(ServerContext* context,
+		       const PopulateArrayRequest* request,
+		       Empty* writer) override{
+
+    this->array_size = request->array_size();
+    std::cout << "Populated an int array with " << this->array_size
+	      << " ints" << std::endl;
+    this->array = new int[this->array_size];
+    for (int i=0; i<this->array_size; i++){
+      array[i] = i;
+    }
+
+    return Status::OK;
+  }
+
+  
+
+  // Send an array back using a stream of byte chunks
   Status DownloadArray(ServerContext* context, const StreamRequest* request,
 		       ServerWriter<Chunk>* writer) override {
 
     DataType vtype = DataType::INTEGER;
 
-    // fill an array with values
-    int n = this->GetMetadataValue<int>(context, "arr_sz", 10000);
-    int *array = new int[n];
-    for (int i=0; i<n; i++){
-      array[i] = i;
-    }
+    // populate metadata
+    context->AddInitialMetadata("size", std::to_string(this->array_size));
+    context->AddInitialMetadata("datatype", "INT32");
 
-    int chunk_size = 256;
-
-    int n_bytes = sizeof(int)*n;
+    // Stream the array
+    int n_bytes = this->array_size*sizeof(int);
+    int chunk_size = GetMetadataValue<int>(context, "chunk_size", DEFAULT_CHUNKSIZE);
     StreamChunks(writer, chunk_size, array, n_bytes, "DemoArray", vtype);
 
     return Status::OK;
   }
-};
 
+  Status DownloadArraySlow(ServerContext* context, const StreamRequest* request,
+			   RepeatedInts* writer) override{
+
+    DataType vtype = DataType::INTEGER;
+
+    // Send data
+    int n = this->array_size;
+    RepeatedInts message;
+    for (int i=0; i<n; i++){
+      writer->add_ints(this->array[i]);
+    }
+
+    return Status::OK;
+  }
+
+    
+}; // Server
 
 
 void RunServer() {

@@ -21,6 +21,14 @@ cmake_minimum_required(VERSION 3.5.1)
 
 project(Chunkdemo C CXX)
 
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
+
+set(CMAKE_CXX_FLAGS "-Wall -Wextra")
+set(CMAKE_CXX_FLAGS_DEBUG "-g")
+set(CMAKE_CXX_FLAGS_RELEASE "-O2")
+
 if(NOT MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 else()
@@ -78,7 +86,7 @@ else()
 endif()
 
 # Proto file
-get_filename_component(hw_proto "./protos/chunkdemo.proto" ABSOLUTE)
+get_filename_component(hw_proto "../protos/chunkdemo.proto" ABSOLUTE)
 get_filename_component(hw_proto_path "${hw_proto}" PATH)
 
 # Generated sources
