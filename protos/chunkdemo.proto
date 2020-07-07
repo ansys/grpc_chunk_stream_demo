@@ -19,14 +19,14 @@ message Chunk
   int64 size = 5;
 }
 
-message DemoStreamRequest
+message StreamRequest
 {
   int32 chunk_size = 1;
   int32 array_size = 2;
   DataType array_type = 3;
 }
 
-service Demo{
+service ChunkDemo{
   // Send a series of chunks containing an array
-  rpc DownloadArray(DemoStreamRequest) returns (stream Chunk);
+  rpc DownloadArray(StreamRequest) returns (stream Chunk);
 }

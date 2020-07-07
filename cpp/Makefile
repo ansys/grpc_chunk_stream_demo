@@ -43,13 +43,15 @@ PROTOS_PATH = ./protos
 
 vpath %.proto $(PROTOS_PATH)
 
-# all: system-check greeter_client greeter_server greeter_async_client greeter_async_client2 greeter_async_server
+all: system-check compile_proto
 
-# greeter_client: helloworld.pb.o helloworld.grpc.pb.o greeter_client.o
+compile_proto: chunkdemo.grpc.pb.cc chunkdemo.pb.cc
+
+# demo_client: chunkdemo.pb.o chunkdemo.grpc.pb.o demo_client.o
 # 	$(CXX) $^ $(LDFLAGS) -o $@
 
-# greeter_server: helloworld.pb.o helloworld.grpc.pb.o greeter_server.o
-# 	$(CXX) $^ $(LDFLAGS) -o $@
+demo_server: chunkdemo.pb.o chunkdemo.grpc.pb.o demo_server.o
+	$(CXX) $^ $(LDFLAGS) -o $@
 
 .PRECIOUS: %.grpc.pb.cc
 %.grpc.pb.cc: %.proto
@@ -59,8 +61,8 @@ vpath %.proto $(PROTOS_PATH)
 %.pb.cc: %.proto
 	$(PROTOC) -I $(PROTOS_PATH) --cpp_out=. $<
 
-# clean:
-# 	rm -f *.o *.pb.cc *.pb.h greeter_client greeter_server greeter_async_client greeter_async_client2 greeter_async_server
+clean:
+	rm -f *.o *.pb.cc *.pb.h
 
 
 # The following is to test your system and ensure a smoother experience.
