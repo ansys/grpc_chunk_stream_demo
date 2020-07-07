@@ -1,9 +1,16 @@
 # autogen grpc source
-chunkdemo.grpc.pb.cc
-chunkdemo.grpc.pb.h
-chunkdemo.pb.cc
-chunkdemo.pb.h
+chunkdemo.grpc.pb*
+chunkdemo.pb.*
 
 # emacs temp and backup files
 *~
 #*#
+
+# python
+*.pyc
+*__pycache__/
+
+# cmake
+
+# autogen python source
+chunkdemo_pb2*
