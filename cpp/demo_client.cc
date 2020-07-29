@@ -125,22 +125,19 @@ class DemoClient {
     // size the array
     reader->WaitForInitialMetadata();
     const int array_size = GetInitialMetadataValue<int>(&context, "size", 0);
-    int *array = new int[array_size];
+    double *array = new double[array_size];
     char *rawarray = (char*)array;
 
     // Read data from the server in chunks
     Chunk chunk;
     while (reader->Read(&chunk)) {
 	const std::string payload = chunk.payload();
-
-	// *Probably* slower:
-	// for (unsigned int i=0; i<payload.size(); i++) {
-	//   rawarray[i] = payload[i];
-	// }
-
 	memcpy(rawarray, payload.c_str(), payload.size());
 	rawarray += payload.size();
     }
+
+    
+    // std::cout << "first value is " << array[0] << std::endl;
   }
 
 
@@ -154,7 +151,7 @@ class DemoClient {
     Status status = stub_->DownloadArraySlow(&context, request, &reply);
 
     const int array_size = reply.ints_size();
-    int *array = new int[array_size];
+    double *array = new double[array_size];
     for (int i=0; i<array_size; i++){
       array[i] = reply.ints(i);
     }
@@ -194,7 +191,7 @@ int main(int argc, char** argv) {
       "Options:" << endl <<
       "-h               Print this help" << endl <<
       "--target         Set the target channel (default localhost:50000)" << endl <<
-      "--chunk_size     Set the chunk size in kB (default 256)" << endl <<
+      "--chunk_size     Set the chunk size in Bytes (default 252144)" << endl <<
       "--skip_repeated  Skip testing the repeated messages" << endl <<
       "--array_size     Size of array in int32" << endl <<
       "--ntimes_stream  Number of times to test the stream" << endl;
@@ -211,7 +208,7 @@ int main(int argc, char** argv) {
 
   int chunk_size;
   if (cmdOptionExists(argv, argv + argc, "--chunk_size")){
-    chunk_size = std::stoi(getCmdOption(argv, argv + argc, "--chunk_size")) * 1024;
+    chunk_size = std::stoi(getCmdOption(argv, argv + argc, "--chunk_size"));
   } else {
     chunk_size = DEFAULT_CHUNKSIZE;
   }  
@@ -237,7 +234,7 @@ int main(int argc, char** argv) {
 
   //////////////// Test with byte stream ////////////////
   std::cout << "Testing with byte stream..." << endl;
-  std::cout << "Using chunk size " << chunk_size/1024 << " kB" << endl;
+  std::cout << "Using chunk size " << chunk_size << " Bytes" << endl;
 
   // Run a few times
   // Start by initializing the array on the server
