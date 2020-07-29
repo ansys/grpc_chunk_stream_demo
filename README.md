@@ -36,41 +36,7 @@ The C++ server is now waiting for connections from port 50000.
 
 #### C++ Client
 
-From a different terminal within the `build` directory, run:
 
-```
-./demo_client
-```
-
-This will connect to the server at your local host and run a basic
-array transfer test using both a byte stream and repeated messages
-using the C++ server and client.
-
-
-```
-Connected to server at: localhost:50000
-Created an INT32 array on the server size 10000000
-Array is 38.15 MB
-
-Testing with byte stream...
-Using chunk size 256 kB
-Average time: 0.0269195
-Aprox speed: 1.38 GBps
-
-Testing with repeated messages...
-Average time: 0.101271
-Aprox speed: 376.68 MBps
-```
-
-These timings were taken using `-O2` with `gcc` with Ubuntu 18.04 on a
-Intel i7-7820HQ.  `MEMCPY` speed is:
-
-```
-$ mbw 32 | grep AVG | grep MEMCPY
-
-AVG	Method: MEMCPY	Elapsed: 0.00412	MiB: 32.00000	Copy: 7775.861 MiB/s
-
-```
 
 #### Python Client
 
@@ -100,20 +66,11 @@ array transfer test using both a byte stream and repeated messages.
 
 ```
 Connected to server at 127.0.0.1:50000
-Created an INT32 array on the server size 20000000
 Testing with byte stream...
-Average time: 0.06707191489986145
-Aprox speed: 1.1GiB
+Average time: 0.3553605652999977
+Aprox speed: 214.7MiB
 
 Testing with repeated messages...
-Average time: 1.647849985335294
-Aprox speed: 46.3MiB
+Average time: 0.5059016572000019
+Aprox speed: 22.6MiB
 ```
-
-Note that the performance with repeated messages on Python is
-remarkably slow compared with the byte stream.  This is because the
-`RepeatedInts` message must be iterated ove within Python.  While this
-could be improved with a C extension to Python, it would still be
-slower than the byte stream considering that the native C++
-performance of the byte stream is still ~3.6x slower than using a byte
-stream.

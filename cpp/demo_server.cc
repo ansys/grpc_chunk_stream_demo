@@ -92,7 +92,7 @@ template double GetMetadataValue<double>(ServerContext* context, std::string nam
 class ChunkServiceImpl final : public ChunkDemo::Service {
 
   // Array to send to client
-  double *array;
+  int *array;
   int array_size;
 
   Status PopulateArray(ServerContext* context,
@@ -102,7 +102,7 @@ class ChunkServiceImpl final : public ChunkDemo::Service {
     this->array_size = request->array_size();
     // std::cout << "Populated an int array with " << this->array_size
 	      // << " ints" << std::endl;
-    this->array = new double[this->array_size];
+    this->array = new int[this->array_size];
     for (int i=0; i<this->array_size; i++){
       array[i] = i;
     }
@@ -121,7 +121,7 @@ class ChunkServiceImpl final : public ChunkDemo::Service {
     context->AddInitialMetadata("datatype", "INT32");
 
     // Stream the array
-    int n_bytes = this->array_size*sizeof(double);
+    int n_bytes = this->array_size*sizeof(int);
     int chunk_size = GetMetadataValue<int>(context, "chunk_size", DEFAULT_CHUNKSIZE);
     StreamChunks(writer, chunk_size, array, n_bytes);
 

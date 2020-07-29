@@ -12,7 +12,7 @@ enum DataType{
 }
 
 message RepeatedInts{
-repeated double ints = 1;
+repeated int32 ints = 1;
 }
 
 message Chunk{
