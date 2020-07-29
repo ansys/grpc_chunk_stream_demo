@@ -48,8 +48,7 @@ class ChunkDemoClient:
     def request_array_from_repeated(self):
         request = StreamRequest()
         response = self._stub.DownloadArraySlow(request)
-        # return np.array(response.ints)  # slow
-        return np.fromiter(response.ints, dtype=np.int32)
+        return np.array(response.ints)
 
     def populate_array(self, array_size):
         request = PopulateArrayRequest(array_size=array_size)
