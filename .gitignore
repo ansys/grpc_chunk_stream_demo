@@ -12,6 +12,7 @@ chunkdemo.pb.*
 
 # cmake
 cmake/
+build/
 
 # autogen python source
 chunkdemo_pb2*
