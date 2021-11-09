@@ -120,7 +120,7 @@ class DemoClient {
     StreamRequest request;
     ClientContext context;
     context.AddMetadata("chunk_size", std::to_string(chunk_size));
-    std::unique_ptr<grpc_impl::ClientReader<Chunk>> reader(stub_->DownloadArray(&context, request));
+    std::unique_ptr<grpc::ClientReader<Chunk>> reader(stub_->DownloadArray(&context, request));
     
     // size the array
     reader->WaitForInitialMetadata();
