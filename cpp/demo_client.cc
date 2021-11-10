@@ -153,11 +153,7 @@ class DemoClient {
     chunkdemo::RepeatedInts reply;
     Status status = stub_->DownloadArraySlow(&context, request, &reply);
 
-    const int array_size = reply.ints_size();
-    int *array = new int[array_size];
-    for (int i=0; i<array_size; i++){
-      array[i] = reply.ints(i);
-    }
+    std::vector<int> res_vec(reply.ints().begin(), reply.ints().end());
   }
 
  private:
