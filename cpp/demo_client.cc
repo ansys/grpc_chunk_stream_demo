@@ -156,6 +156,20 @@ class DemoClient {
     std::vector<int> res_vec(reply.ints().begin(), reply.ints().end());
   }
 
+  // stream back an array using repeated messages
+  void RequestArrayFromRepeatedChunked() {
+
+      // assemble the request and send the RPC
+      StreamRequest request; // should use empty request
+      ClientContext context;
+      std::unique_ptr<grpc::ClientReader<chunkdemo::RepeatedInts>> reader(stub_->DownloadArrayChunkedRepeated(&context, request));
+      chunkdemo::RepeatedInts chunk;
+      std::vector<int> res_vec;
+      while(reader->Read(&chunk)) {
+        res_vec.insert(res_vec.end(), chunk.ints().begin(), chunk.ints().end());
+      }
+  }
+
  private:
   std::unique_ptr<ChunkDemo::Stub> stub_;
 };
@@ -257,7 +271,7 @@ int main(int argc, char** argv) {
   std::cout << "Average time: " << duration << endl;
 
   double bps = array_size*sizeof(int)/duration; // bytes per second
-  std::cout << "Aprox speed: " << humanSize(bps) << "ps" << endl;
+  std::cout << "Approx speed: " << humanSize(bps) << "ps" << endl;
   std::cout << endl;
 
 
@@ -284,7 +298,33 @@ int main(int argc, char** argv) {
   std::cout << "Average time: " << duration << endl;
 
   bps = array_size*sizeof(int)/duration; // bytes per second
-  std::cout << "Aprox speed: " << humanSize(bps) << "ps" << endl;
+  std::cout << "Approx speed: " << humanSize(bps) << "ps" << endl;
+  std::cout << endl;
+
+  //////////////// Test with repeated chunked messages ////////////////
+  // if (cmdOptionExists(argv, argv + argc, "--skip_repeated")) {
+  //     return 0;
+  // }
+  std::cout << "Testing with repeated chunked messages..." << endl;
+
+  // Start by initializing the array on the server
+  // client.PopulateArray(array_size);
+
+  // Run a few times
+  ntimes = 3;
+  start = high_resolution_clock::now();
+  for (int i = 0; i < ntimes; i++) {
+      client.RequestArrayFromRepeatedChunked();
+  }
+
+  stop = high_resolution_clock::now();
+  duration = duration_cast<microseconds>(stop - start).count();
+  duration /= 1000000; // microseconds to seconds
+  duration /= ntimes;
+  std::cout << "Average time: " << duration << endl;
+
+  bps = array_size * sizeof(int) / duration; // bytes per second
+  std::cout << "Approx speed: " << humanSize(bps) << "ps" << endl;
   std::cout << endl;
 
   return 0;

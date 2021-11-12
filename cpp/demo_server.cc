@@ -132,6 +132,29 @@ class ChunkServiceImpl final : public ChunkDemo::Service {
     return Status::OK;
   }
 
+  Status DownloadArrayChunkedRepeated(
+    ServerContext *context,
+    const StreamRequest *request,
+    ServerWriter<RepeatedInts> *writer
+  ) override {
+      // Stream the array
+      int n_bytes = this->array_size * sizeof(int);
+      int chunk_size =
+          GetMetadataValue<int>(context, "chunk_size", DEFAULT_CHUNKSIZE / 4);
+      RepeatedInts chunk;
+
+      // Send data
+      for (auto it = int_vec__.begin(); it <= int_vec__.end();
+           std::advance(it, chunk_size)) {
+          chunk.mutable_ints()->Clear();
+          chunk.mutable_ints()->Add(it,
+                                    std::min(it + chunk_size, int_vec__.end()));
+          writer->Write(chunk);
+      }
+
+      return Status::OK;
+  }
+
   Status DownloadArraySlow(ServerContext* context, const StreamRequest* request,
 			   RepeatedInts* writer) override{
 
