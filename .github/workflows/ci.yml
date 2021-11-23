@@ -1,0 +1,38 @@
+name: GitHub Actions
+
+jobs:
+  docs_build:
+    name: Build Documentation
+    runs-on: ubuntu-latest
+    env:
+      MY_INSTALL_DIR: /tmp/grpc
+      GPRC_VERSION: v1.41.0
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install OS packages
+        run: |
+          sudo apt update
+          sudo apt install cmake build-essential autoconf libtool pkg-config
+
+      -name: Install gRPC
+        run: |
+          git clone --recurse-submodules -b GPRC_VERSION https://github.com/grpc/grpc
+          cd grpc
+          mkdir -p cmake/build
+          pushd cmake/build
+          cmake -DgRPC_INSTALL=ON \
+                -DgRPC_BUILD_TESTS=OFF \
+                -DCMAKE_INSTALL_PREFIX=$MY_INSTALL_DIR \
+                ../..
+          make -j
+          make install
+          popd
+
+      - name: Cache gRPC
+        uses: actions/cache@v2
+        with:
+          path: '{{ env.MY_INSTALL_DIR }}'
+          key: '{{ env.GRPC_VERSION }}'
+
