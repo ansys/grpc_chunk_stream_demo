@@ -8,8 +8,8 @@ on:
     branches: "**"
 
 jobs:
-  docs_build:
-    name: Build Documentation
+  build:
+    name: Build C++
     runs-on: ubuntu-latest
     env:
       MY_INSTALL_DIR: /tmp/grpc
@@ -25,7 +25,7 @@ jobs:
 
       - name: Install gRPC
         run: |
-          git clone --recurse-submodules -b GPRC_VERSION https://github.com/grpc/grpc
+          git clone --recurse-submodules -b $GPRC_VERSION https://github.com/grpc/grpc
           cd grpc
           mkdir -p cmake/build
           pushd cmake/build
