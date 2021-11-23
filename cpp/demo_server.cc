@@ -19,6 +19,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <grpcpp/grpcpp.h>
 
@@ -59,12 +60,12 @@ GetMetadataValue( ServerContext* context, std::string name, T DefaultValue)
       std::string	strVal = iterMetaData->second.data();
       StrToVal( strVal, Val);
     }
-  
+
   return Val;
 }
 
 
-// stream a series of chunks 
+// stream a series of chunks
 inline void StreamChunks(ServerWriter<Chunk>* writer, int chunk_size,
 			 const void* array, int n_bytes){
   char* bytes = (char*) array;
@@ -94,6 +95,7 @@ class ChunkServiceImpl final : public ChunkDemo::Service {
   // Array to send to client
   int *array;
   int array_size;
+  std::vector<int> int_vec__;
 
   Status PopulateArray(ServerContext* context,
 		       const PopulateArrayRequest* request,
@@ -103,14 +105,16 @@ class ChunkServiceImpl final : public ChunkDemo::Service {
     // std::cout << "Populated an int array with " << this->array_size
 	      // << " ints" << std::endl;
     this->array = new int[this->array_size];
+    int_vec__.clear();
     for (int i=0; i<this->array_size; i++){
       array[i] = i;
+      int_vec__.push_back(i);
     }
 
     return Status::OK;
   }
 
-  
+
 
   // Send an array back using a stream of byte chunks
   Status DownloadArray(ServerContext* context, const StreamRequest* request,
@@ -132,16 +136,12 @@ class ChunkServiceImpl final : public ChunkDemo::Service {
 			   RepeatedInts* writer) override{
 
     // Send data
-    int n = this->array_size;
-    RepeatedInts message;
-    for (int i=0; i<n; i++){
-      writer->add_ints(this->array[i]);
-    }
+    writer->mutable_ints()->Add(int_vec__.begin(), int_vec__.end());
 
     return Status::OK;
   }
 
-    
+
 }; // Server
 
 

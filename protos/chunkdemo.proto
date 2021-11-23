@@ -12,7 +12,7 @@ enum DataType{
 }
 
 message RepeatedInts{
-repeated int32 ints = 1;
+repeated sfixed32 ints = 1;
 }
 
 message Chunk{
@@ -38,6 +38,6 @@ service ChunkDemo{
 
   // Send the array to the client using repeated ints
   rpc DownloadArraySlow(StreamRequest) returns (RepeatedInts);
- 
+
 
 }

@@ -109,7 +109,7 @@ class DemoClient {
     // } else {
     //   std::cout << "Failed to create array" << endl;
     // }
- 
+
     return;
   }
 
@@ -120,8 +120,8 @@ class DemoClient {
     StreamRequest request;
     ClientContext context;
     context.AddMetadata("chunk_size", std::to_string(chunk_size));
-    std::unique_ptr<grpc_impl::ClientReader<Chunk>> reader(stub_->DownloadArray(&context, request));
-    
+    std::unique_ptr<grpc::ClientReader<Chunk>> reader(stub_->DownloadArray(&context, request));
+
     // size the array
     reader->WaitForInitialMetadata();
     const int array_size = GetInitialMetadataValue<int>(&context, "size", 0);
@@ -153,11 +153,7 @@ class DemoClient {
     chunkdemo::RepeatedInts reply;
     Status status = stub_->DownloadArraySlow(&context, request, &reply);
 
-    const int array_size = reply.ints_size();
-    int *array = new int[array_size];
-    for (int i=0; i<array_size; i++){
-      array[i] = reply.ints(i);
-    }
+    std::vector<int> res_vec(reply.ints().begin(), reply.ints().end());
   }
 
  private:
@@ -214,11 +210,13 @@ int main(int argc, char** argv) {
     chunk_size = std::stoi(getCmdOption(argv, argv + argc, "--chunk_size")) * 1024;
   } else {
     chunk_size = DEFAULT_CHUNKSIZE;
-  }  
+  }
 
+  grpc::ChannelArguments args;
+  args.SetMaxReceiveMessageSize(-1);
   // create client
-  DemoClient client(grpc::CreateChannel(
-      target_str, grpc::InsecureChannelCredentials()));
+  DemoClient client(grpc::CreateCustomChannel(
+      target_str, grpc::InsecureChannelCredentials(), args));
   std::cout << "Connected to server at: " << target_str << endl;
 
 
@@ -228,7 +226,7 @@ int main(int argc, char** argv) {
     array_size = std::stoi(getCmdOption(argv, argv + argc, "--array_size"));
   } else {
     array_size = 10000000;
-  }  
+  }
 
   client.PopulateArray(array_size);
   std::cout << "Created an INT32 array on the server size " << array_size << endl;
@@ -246,7 +244,7 @@ int main(int argc, char** argv) {
     ntimes = std::stoi(getCmdOption(argv, argv + argc, "--ntimes_stream"));
   } else {
     ntimes = 20;
-  }  
+  }
   auto start = high_resolution_clock::now();
   for (int i=0; i<ntimes; i++){
     client.RequestArray(chunk_size);
@@ -284,7 +282,7 @@ int main(int argc, char** argv) {
   duration /= 1000000;  // microseconds to seconds
   duration /= ntimes;
   std::cout << "Average time: " << duration << endl;
-  
+
   bps = array_size*sizeof(int)/duration; // bytes per second
   std::cout << "Aprox speed: " << humanSize(bps) << "ps" << endl;
   std::cout << endl;

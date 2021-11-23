@@ -15,3 +15,6 @@ cmake/
 
 # autogen python source
 chunkdemo_pb2*
+
+# VSCode settings files
+.vscode
