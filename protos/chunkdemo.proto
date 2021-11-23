@@ -36,6 +36,9 @@ service ChunkDemo{
   // Send a stream of byte payloads containing the array
   rpc DownloadArray(StreamRequest) returns (stream Chunk);
 
+  // Send an array by combining streaming and repeated ints
+  rpc DownloadArrayChunkedRepeated(StreamRequest) returns (stream RepeatedInts);
+
   // Send the array to the client using repeated ints
   rpc DownloadArraySlow(StreamRequest) returns (RepeatedInts);
 
