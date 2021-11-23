@@ -1,0 +1,4 @@
+conan
+numpy
+pandas
+seaborn
