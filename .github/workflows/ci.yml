@@ -1,5 +1,12 @@
 name: GitHub Actions
 
+on:
+  push:
+    branches: "*"
+    tags: "*"
+  pull_request:
+    branches: "**"
+
 jobs:
   docs_build:
     name: Build Documentation
