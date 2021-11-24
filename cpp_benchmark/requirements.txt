@@ -2,3 +2,4 @@ conan
 numpy
 pandas
 seaborn
+jinja2

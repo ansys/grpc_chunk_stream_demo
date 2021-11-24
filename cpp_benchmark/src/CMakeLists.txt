@@ -1,3 +1,5 @@
 add_executable(timer timer.cpp)
 target_include_directories(timer PUBLIC ${CONAN_LIB_DIRS})
+# target_include_directories(timer PUBLIC )
 target_link_libraries(timer ${CONAN_LIBS})
+target_link_libraries(timer send_array)

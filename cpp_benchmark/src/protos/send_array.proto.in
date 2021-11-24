@@ -1,0 +1,40 @@
+// Demonstrates the serialization of an array from server to client
+// using gRPC
+
+syntax = "proto3";
+package send_array;
+
+message Empty {}
+
+message BinaryChunk{
+  bytes payload = 1;
+}
+
+message StreamRequest{
+  int32 chunk_size = 1;
+}
+
+{% for dtype in data_types %}
+// Section {{ dtype | upper }}
+
+message Repeated{{ dtype | capitalize }}{
+repeated {{ dtype }} payload = 1;
+}
+
+service SendArray{{ dtype | capitalize }}{
+  // Create an array within the server
+  rpc PopulateArray(Repeated{{ dtype | capitalize }}) returns (Empty);
+
+  // Send a stream of byte payloads containing the array
+  rpc DownloadArrayBinaryChunked(StreamRequest) returns (stream BinaryChunk);
+
+  // Send an array by combining streaming and repeated items
+  rpc DownloadArrayChunked(StreamRequest) returns (stream Repeated{{ dtype | capitalize }});
+
+  // Send the array to the client using repeated items
+  rpc DownloadArray(Empty) returns (Repeated{{ dtype | capitalize }});
+}
+
+// End Section {{ dtype | upper }}
+
+{% endfor %}
