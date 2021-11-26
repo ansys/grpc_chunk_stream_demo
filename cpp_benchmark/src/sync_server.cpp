@@ -1,4 +1,6 @@
 #include <cstdio>
+#include <vector>
+#include <memory>
 
 #include <grpcpp/grpcpp.h>
 
@@ -8,7 +10,15 @@
 
 void RunServer() {
     std::string server_address("0.0.0.0:50000");
-    send_array::ServiceImpl<send_array::SendArraySfixed32> service;
+    std::vector<std::unique_ptr<grpc::Service>> services;
+    services.push_back(std::make_unique<send_array::ServiceImpl<send_array::SendArrayDouble>>());
+    services.push_back(std::make_unique<send_array::ServiceImpl<send_array::SendArrayFloat>>());
+    services.push_back(std::make_unique<send_array::ServiceImpl<send_array::SendArrayInt32>>());
+    services.push_back(std::make_unique<send_array::ServiceImpl<send_array::SendArrayInt64>>());
+    services.push_back(std::make_unique<send_array::ServiceImpl<send_array::SendArraySint32>>());
+    services.push_back(std::make_unique<send_array::ServiceImpl<send_array::SendArraySint64>>());
+    services.push_back(std::make_unique<send_array::ServiceImpl<send_array::SendArraySfixed32>>());
+    services.push_back(std::make_unique<send_array::ServiceImpl<send_array::SendArraySfixed64>>());
 
     grpc::ServerBuilder builder;
     // Listen on the given address without any authentication mechanism.
@@ -16,7 +26,9 @@ void RunServer() {
 
     // Register "service" as the instance through which we'll communicate with
     // clients. In this case it corresponds to an *synchronous* service.
-    builder.RegisterService(&service);
+    for(auto& service: services) {
+        builder.RegisterService(service.get());
+    }
 
     // Finally assemble the server.
     std::unique_ptr<grpc::Server> server(builder.BuildAndStart());
