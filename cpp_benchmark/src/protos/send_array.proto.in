@@ -25,6 +25,9 @@ service SendArray{{ dtype | capitalize }}{
   // Create an array within the server
   rpc PopulateArray(Repeated{{ dtype | capitalize }}) returns (Empty);
 
+  // Delete all arrays on the server
+  rpc ClearArrays(Empty) returns (Empty);
+
   // Send a stream of byte payloads containing the array
   rpc DownloadArrayBinaryChunked(StreamRequest) returns (stream BinaryChunk);
 

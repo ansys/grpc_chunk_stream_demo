@@ -19,20 +19,24 @@ venv/bin/activate:
 
 venv/.done: requirements.txt venv/bin/activate
 	@echo "### Installing Python dependencies ###"
-	. $(VENV_ACTIVATE)
-	pip install -r requirements.txt
+	( \
+	  . $(VENV_ACTIVATE) && \
+	  pip install -U pip && \
+	  pip install -r requirements.txt && \
+	  conan profile new --detect --force grpc_cpp_benchmark && \
+	  conan profile update settings.compiler.libcxx=libstdc++11 grpc_cpp_benchmark && \
+	 conan remote add conancenter https://center.conan.io && \
+	)
 	@touch $@
 
 src/protos/send_array.proto: src/protos/render_proto_template.py src/protos/send_array.proto.in venv/.done
 	@echo "### Rendering .proto file from template ###"
-	. $(VENV_ACTIVATE)
-	python $<
+	. $(VENV_ACTIVATE) && python $<
 
 build/.deps_done: conanfile.txt venv/.done
 	@echo "### Installing C++ dependencies ###"
 	mkdir -p build
-	. $(VENV_ACTIVATE)
-	conan install -if build --build=missing .
+	. $(VENV_ACTIVATE) && conan install -if build --build=missing --profile=grpc_cpp_benchmark .
 	@touch $@
 
 generated_src/.generate_done: src/protos/send_array.proto build/.deps_done
@@ -40,7 +44,7 @@ generated_src/.generate_done: src/protos/send_array.proto build/.deps_done
 	$(PROTOC) --proto_path=$(PROTOS_DIR) --cpp_out=generated_src --grpc_out=generated_src --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN_PATH) send_array.proto
 	@touch $@
 
-build/.cmake_done: build/.deps_done CMakeLists.txt **/CMakeLists.txt
+build/.cmake_done: build/.deps_done CMakeLists.txt **/CMakeLists.txt generated_src/.generate_done
 	@echo "### Setting up CMake ###"
 	cd build && cmake ..
 	@touch $@
