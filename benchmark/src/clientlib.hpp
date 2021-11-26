@@ -37,6 +37,54 @@ class SendArrayClient {
             grpc::ClientContext context;
             auto status = stub_->ClearArrays(&context, request, &response);
         }
+
+        void DownloadArray(std::vector<data_type>& target) {
+            Empty request;
+            grpc::ClientContext context;
+            repeated_type response;
+            auto status = stub_->DownloadArray(&context, request, &response);
+            for(const auto data: response.payload()) {
+                target.push_back(data);
+            }
+        }
+
+        void DownloadArrayChunked(std::vector<data_type>& target, int32_t chunk_size) {
+            StreamRequest request;
+            request.set_chunk_size(chunk_size);
+            grpc::ClientContext context;
+            repeated_type chunk;
+            std::unique_ptr<grpc::ClientReader<repeated_type>> reader(
+                stub_->DownloadArrayChunked(&context, request)
+            );
+
+            while(reader->Read(&chunk)) {
+                target.insert(
+                    target.cend(),
+                    chunk.payload().cbegin(),
+                    chunk.payload().cend()
+                );
+            }
+        }
+
+        void DownloadArrayBinaryChunked(std::vector<data_type>& target, int32_t chunk_size) {
+            auto raw_target = reinterpret_cast<std::string *> (&target);
+            StreamRequest request;
+            request.set_chunk_size(chunk_size);
+            grpc::ClientContext context;
+            BinaryChunk chunk;
+            std::unique_ptr<grpc::ClientReader<BinaryChunk>> reader(
+                stub_->DownloadArrayBinaryChunked(&context, request)
+            );
+            while(reader->Read(&chunk)) {
+                #pragma GCC diagnostic push
+                #pragma GCC diagnostic ignored "-Wclass-memaccess"
+                memcpy(raw_target, chunk.payload().c_str(), chunk.payload().size());
+                #pragma GCC diagnostic pop
+                // The chunk_size is equal to 'chunk.payload().size()' except
+                // possibly at the last iteration, when it no longer matters.
+                raw_target += chunk_size;
+            }
+        }
 };
 
-}
+} // end namespace send_array

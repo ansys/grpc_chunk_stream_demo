@@ -20,8 +20,27 @@ int main() {
     // create client
     send_array::SendArrayClient<send_array::SendArraySfixed32> client(channel);
 
-    client.PopulateArray({1, 2, 3});
-    client.PopulateArray({4, 5, 6, 7});
-    client.ClearArrays();
-    client.PopulateArray({4, 5, 6, 7});
+    using vec_type = std::vector<send_array::TypesLookup<send_array::SendArraySfixed32>::data_type>;
+    vec_type vec = {1, 2, 3, 4};
+    client.PopulateArray(vec);
+
+    vec_type target;
+    target.reserve(vec.size());
+    client.DownloadArray(target);
+    for(std::size_t i=0; i < vec.size(); ++i) {
+        std::cout << vec[i] << " " << target[i] << std::endl;
+    }
+
+    target.clear();
+    target.reserve(vec.size());
+    client.DownloadArrayChunked(target, 4);
+    for(std::size_t i=0; i < vec.size(); ++i) {
+        std::cout << vec[i] << " " << target[i] << std::endl;
+    }
+    target.clear();
+    target.reserve(vec.size());
+    client.DownloadArrayBinaryChunked(target, 3);
+    for(std::size_t i=0; i < vec.size(); ++i) {
+        std::cout << vec[i] << " " << target[i] << std::endl;
+    }
 }

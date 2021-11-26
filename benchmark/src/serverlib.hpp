@@ -1,7 +1,9 @@
 #pragma once
 
 #include <cstdint>
+#include <cstddef>
 #include <vector>
+#include <string>
 #include <grpcpp/grpcpp.h>
 
 #include "send_array.grpc.pb.h"
@@ -18,10 +20,10 @@ class ServiceImpl final: public GrpcType::Service {
         using repeated_type = typename TypesLookup<GrpcType>::repeated_type;
 
         std::vector<std::vector<data_type>> data__;
-        typename std::vector<std::vector<data_type>>::iterator data_iterator__;
+        std::size_t data_index__;
 
     public:
-        ServiceImpl(): data__(), data_iterator__(data__.begin()) {}
+        ServiceImpl(): data__(), data_index__(0) {}
 
         grpc::Status PopulateArray(
             grpc::ServerContext* context,
@@ -38,7 +40,7 @@ class ServiceImpl final: public GrpcType::Service {
             Empty* response
         ) override {
             data__.clear();
-            data_iterator__ = data__.begin();
+            data_index__ = 0;
             return grpc::Status::OK;
         }
 
@@ -47,11 +49,12 @@ class ServiceImpl final: public GrpcType::Service {
             const Empty* request,
             repeated_type* response
         ) override {
+            const auto & source_vec = data__[data_index__];
             response->mutable_payload()->Add(
-                data_iterator__->cbegin(),
-                data_iterator__->cend()
+                source_vec.cbegin(),
+                source_vec.cend()
             );
-            ++data_iterator__;
+            ++data_index__;
             return grpc::Status::OK;
         }
 
@@ -62,16 +65,17 @@ class ServiceImpl final: public GrpcType::Service {
         ) override {
             auto chunk_size = request->chunk_size();
             repeated_type chunk;
+            const auto & source_vec = data__[data_index__];
             for(
-                auto it=data_iterator__->cbegin();
-                it < data_iterator__->cend();
+                auto it=source_vec.cbegin();
+                it < source_vec.cend();
                 std::advance(it, chunk_size)
             ) {
                 chunk.mutable_payload()->Clear();
-                chunk.mutable_payload()->Add(it, std::min(it + chunk_size, data_iterator__->cend()));
+                chunk.mutable_payload()->Add(it, std::min(it + chunk_size, source_vec.cend()));
                 writer->Write(chunk);
             }
-            ++data_iterator__;
+            ++data_index__;
             return grpc::Status::OK;
         }
 
@@ -82,8 +86,9 @@ class ServiceImpl final: public GrpcType::Service {
         ) override {
             auto chunk_size = request->chunk_size();
 
-            auto start = reinterpret_cast<const char*>(&data_iterator__->front());
-            const auto end = reinterpret_cast<const char* const>(&data_iterator__->back());
+            const auto & source_vec = data__[data_index__];
+            auto start = reinterpret_cast<const std::string*>(&source_vec.front());
+            const auto end = reinterpret_cast<const std::string* const>(&source_vec.back());
 
             BinaryChunk chunk;
             // Add chunks that can be transmitted fully
@@ -96,7 +101,7 @@ class ServiceImpl final: public GrpcType::Service {
             chunk.set_payload(start, end - start);
             writer-> Write(chunk);
 
-            ++data_iterator__;
+            ++data_index__;
             return grpc::Status::OK;
         }
 };

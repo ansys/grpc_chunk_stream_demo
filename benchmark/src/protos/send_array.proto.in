@@ -28,14 +28,14 @@ service SendArray{{ dtype | capitalize }}{
   // Delete all arrays on the server
   rpc ClearArrays(Empty) returns (Empty);
 
-  // Send a stream of byte payloads containing the array
-  rpc DownloadArrayBinaryChunked(StreamRequest) returns (stream BinaryChunk);
+  // Send the array to the client using repeated items
+  rpc DownloadArray(Empty) returns (Repeated{{ dtype | capitalize }});
 
   // Send an array by combining streaming and repeated items
   rpc DownloadArrayChunked(StreamRequest) returns (stream Repeated{{ dtype | capitalize }});
 
-  // Send the array to the client using repeated items
-  rpc DownloadArray(Empty) returns (Repeated{{ dtype | capitalize }});
+  // Send a stream of byte payloads containing the array
+  rpc DownloadArrayBinaryChunked(StreamRequest) returns (stream BinaryChunk);
 }
 
 // End Section {{ dtype | upper }}
