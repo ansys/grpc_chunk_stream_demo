@@ -11,6 +11,8 @@ PROTOS_DIR=src/protos
 GRPC_CPP_PLUGIN_PATH=build/grpc_cpp_plugin
 VENV_ACTIVATE=venv/bin/activate
 
+SHELL := /bin/bash
+
 all: compile_project src/protos/send_array.proto
 
 venv/bin/activate:
@@ -19,14 +21,12 @@ venv/bin/activate:
 
 venv/.done: requirements.txt venv/bin/activate
 	@echo "### Installing Python dependencies ###"
-	( \
-	  . $(VENV_ACTIVATE) && \
-	  pip install -U pip && \
-	  pip install -r requirements.txt && \
-	  conan profile new --detect --force grpc_cpp_benchmark && \
-	  conan profile update settings.compiler.libcxx=libstdc++11 grpc_cpp_benchmark && \
-	 conan remote add conancenter https://center.conan.io && \
-	)
+	. $(VENV_ACTIVATE) && \
+	pip install -U pip && \
+	pip install -r requirements.txt && \
+	conan profile new --detect --force grpc_cpp_benchmark && \
+	conan profile update settings.compiler.libcxx=libstdc++11 grpc_cpp_benchmark && \
+	conan remote add -f conancenter https://center.conan.io
 	@touch $@
 
 src/protos/send_array.proto: src/protos/render_proto_template.py src/protos/send_array.proto.in venv/.done
