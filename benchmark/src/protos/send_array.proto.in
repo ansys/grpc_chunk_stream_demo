@@ -14,11 +14,15 @@ message StreamRequest{
   int32 chunk_size = 1;
 }
 
-{% for dtype in data_types %}
+{% for dtype, _ in data_types %}
 // Section {{ dtype | upper }}
 
 message Repeated{{ dtype | capitalize }}{
-repeated {{ dtype }} payload = 1;
+  repeated {{ dtype }} payload = 1;
+}
+
+message {{ dtype | capitalize }}{
+  {{ dtype }} payload = 1;
 }
 
 service SendArray{{ dtype | capitalize }}{
@@ -33,6 +37,9 @@ service SendArray{{ dtype | capitalize }}{
 
   // Send an array by combining streaming and repeated items
   rpc DownloadArrayChunked(StreamRequest) returns (stream Repeated{{ dtype | capitalize }});
+
+  // Send an array as a simple stream of messages
+  rpc DownloadArrayStreaming(Empty) returns (stream {{ dtype | capitalize }});
 
   // Send a stream of byte payloads containing the array
   rpc DownloadArrayBinaryChunked(StreamRequest) returns (stream BinaryChunk);

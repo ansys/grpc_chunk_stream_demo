@@ -30,7 +30,12 @@ int main() {
     for(std::size_t i=0; i < vec.size(); ++i) {
         std::cout << vec[i] << " " << target[i] << std::endl;
     }
-
+    target.clear();
+    target.reserve(vec.size());
+    client.DownloadArrayStreaming(target);
+    for(std::size_t i=0; i < vec.size(); ++i) {
+        std::cout << vec[i] << " " << target[i] << std::endl;
+    }
     target.clear();
     target.reserve(vec.size());
     client.DownloadArrayChunked(target, 4);

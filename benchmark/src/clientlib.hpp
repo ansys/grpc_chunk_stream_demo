@@ -16,7 +16,8 @@ template <typename GrpcType>
 class SendArrayClient {
     private:
         using data_type = typename TypesLookup<GrpcType>::data_type;
-        using repeated_type = typename TypesLookup<GrpcType>::repeated_type;
+        using single_message_type = typename TypesLookup<GrpcType>::single_message_type;
+        using repeated_message_type = typename TypesLookup<GrpcType>::repeated_message_type;
 
         std::unique_ptr<typename GrpcType::Stub> stub_;
     public:
@@ -25,7 +26,7 @@ class SendArrayClient {
         ): stub_(GrpcType::NewStub(channel)){}
 
         void PopulateArray(const std::vector<data_type> & array) {
-            repeated_type request;
+            repeated_message_type request;
             request.mutable_payload()->Add(array.cbegin(), array.cend());
             Empty response;
             grpc::ClientContext context;
@@ -41,10 +42,23 @@ class SendArrayClient {
         void DownloadArray(std::vector<data_type>& target) {
             Empty request;
             grpc::ClientContext context;
-            repeated_type response;
+            repeated_message_type response;
             auto status = stub_->DownloadArray(&context, request, &response);
             for(const auto data: response.payload()) {
                 target.push_back(data);
+            }
+        }
+
+        void DownloadArrayStreaming(std::vector<data_type>& target) {
+            Empty request;
+            grpc::ClientContext context;
+            std::unique_ptr<grpc::ClientReader<single_message_type>> reader(
+                stub_->DownloadArrayStreaming(&context, request)
+            );
+
+            single_message_type message;
+            while(reader->Read(&message)) {
+                target.emplace_back(message.payload());
             }
         }
 
@@ -52,11 +66,12 @@ class SendArrayClient {
             StreamRequest request;
             request.set_chunk_size(chunk_size);
             grpc::ClientContext context;
-            repeated_type chunk;
-            std::unique_ptr<grpc::ClientReader<repeated_type>> reader(
+
+            std::unique_ptr<grpc::ClientReader<repeated_message_type>> reader(
                 stub_->DownloadArrayChunked(&context, request)
             );
 
+            repeated_message_type chunk;
             while(reader->Read(&chunk)) {
                 target.insert(
                     target.cend(),

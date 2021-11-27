@@ -29,9 +29,9 @@ venv/.done: requirements.txt venv/bin/activate
 	conan remote add -f conancenter https://center.conan.io
 	@touch $@
 
-src/protos/send_array.proto: src/protos/render_proto_template.py src/protos/send_array.proto.in venv/.done
+src/protos/send_array.proto src/types_lookup.hpp: % : render_templates.py venv/.done %.in
 	@echo "### Rendering .proto file from template ###"
-	. $(VENV_ACTIVATE) && python $<
+	. $(VENV_ACTIVATE) && python $< $@.in $@
 
 build/.deps_done: conanfile.txt venv/.done
 	@echo "### Installing C++ dependencies ###"
@@ -49,7 +49,7 @@ build/.cmake_done: build/.deps_done CMakeLists.txt **/CMakeLists.txt generated_s
 	cd build && cmake ..
 	@touch $@
 
-compile_project: build/.cmake_done build/.deps_done generated_src/.generate_done
+compile_project: build/.cmake_done build/.deps_done generated_src/.generate_done src/types_lookup.hpp
 	@echo "### Compiling the C++ source ###"
 	$(MAKE) -C build
 
@@ -59,6 +59,7 @@ clean:
 	rm -rf generated_src/*.cc
 	rm -rf generated_src/*.h
 	rm -rf **/.*done
-	rm -rf src/protos/*.proto
+	rm -f src/protos/*.proto
+	rm -f src/types_lookup.hpp
 
 .PHONY: clean compile_project all

@@ -1,0 +1,22 @@
+#pragma once
+
+#include <cstdint>
+
+#include "send_array.pb.h"
+#include "send_array.grpc.pb.h"
+
+namespace send_array {
+
+template <typename GrpcType> struct TypesLookup;
+
+{% for dtype, cpp_type in data_types %}
+template<>
+struct TypesLookup<SendArray{{ dtype | capitalize }}>{
+    using data_type = {{ cpp_type }};
+    using single_message_type = {{ dtype | capitalize }};
+    using repeated_message_type = Repeated{{ dtype | capitalize }};
+};
+{% endfor %}
+
+
+} // end namespace send_array

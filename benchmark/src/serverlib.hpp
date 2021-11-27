@@ -17,7 +17,8 @@ template<typename GrpcType>
 class ServiceImpl final: public GrpcType::Service {
     private:
         using data_type = typename TypesLookup<GrpcType>::data_type;
-        using repeated_type = typename TypesLookup<GrpcType>::repeated_type;
+        using single_message_type = typename TypesLookup<GrpcType>::single_message_type;
+        using repeated_message_type = typename TypesLookup<GrpcType>::repeated_message_type;
 
         std::vector<std::vector<data_type>> data__;
         std::size_t data_index__;
@@ -27,7 +28,7 @@ class ServiceImpl final: public GrpcType::Service {
 
         grpc::Status PopulateArray(
             grpc::ServerContext* context,
-            const repeated_type* request,
+            const repeated_message_type* request,
             Empty *response
         ) override {
             data__.emplace_back(request->payload().cbegin(), request->payload().cend());
@@ -47,7 +48,7 @@ class ServiceImpl final: public GrpcType::Service {
         grpc::Status DownloadArray(
             grpc::ServerContext* context,
             const Empty* request,
-            repeated_type* response
+            repeated_message_type* response
         ) override {
             const auto & source_vec = data__[data_index__];
             response->mutable_payload()->Add(
@@ -58,13 +59,29 @@ class ServiceImpl final: public GrpcType::Service {
             return grpc::Status::OK;
         }
 
+        grpc::Status DownloadArrayStreaming(
+            grpc::ServerContext* context,
+            const Empty* request,
+            grpc::ServerWriter<single_message_type>* writer
+        ) override {
+            const auto & source_vec = data__[data_index__];
+
+            single_message_type message;
+            for(auto item: source_vec) {
+                message.set_payload(item);
+                writer->Write(message, grpc::WriteOptions().set_buffer_hint());
+            }
+            ++data_index__;
+            return grpc::Status::OK;
+        }
+
         grpc::Status DownloadArrayChunked(
             grpc::ServerContext* context,
             const StreamRequest* request,
-            grpc::ServerWriter<repeated_type>* writer
+            grpc::ServerWriter<repeated_message_type>* writer
         ) override {
             auto chunk_size = request->chunk_size();
-            repeated_type chunk;
+            repeated_message_type chunk;
             const auto & source_vec = data__[data_index__];
             for(
                 auto it=source_vec.cbegin();
@@ -73,7 +90,7 @@ class ServiceImpl final: public GrpcType::Service {
             ) {
                 chunk.mutable_payload()->Clear();
                 chunk.mutable_payload()->Add(it, std::min(it + chunk_size, source_vec.cend()));
-                writer->Write(chunk);
+                writer->Write(chunk, grpc::WriteOptions().set_buffer_hint());
             }
             ++data_index__;
             return grpc::Status::OK;
@@ -99,7 +116,7 @@ class ServiceImpl final: public GrpcType::Service {
             }
             // Add last partial chunk
             chunk.set_payload(start, end - start);
-            writer-> Write(chunk);
+            writer-> Write(chunk, grpc::WriteOptions().set_buffer_hint());
 
             ++data_index__;
             return grpc::Status::OK;
