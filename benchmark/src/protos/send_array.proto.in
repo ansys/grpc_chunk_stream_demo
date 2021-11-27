@@ -25,24 +25,24 @@ message {{ dtype | capitalize }}{
   {{ dtype }} payload = 1;
 }
 
-service SendArray{{ dtype | capitalize }}{
+service ArrayService{{ dtype | capitalize }}{
   // Create an array within the server
-  rpc PopulateArray(Repeated{{ dtype | capitalize }}) returns (Empty);
+  rpc PostArray(Repeated{{ dtype | capitalize }}) returns (Empty);
 
   // Delete all arrays on the server
-  rpc ClearArrays(Empty) returns (Empty);
+  rpc DeleteArrays(Empty) returns (Empty);
 
   // Send the array to the client using repeated items
-  rpc DownloadArray(Empty) returns (Repeated{{ dtype | capitalize }});
+  rpc GetArray(Empty) returns (Repeated{{ dtype | capitalize }});
 
   // Send an array by combining streaming and repeated items
-  rpc DownloadArrayChunked(StreamRequest) returns (stream Repeated{{ dtype | capitalize }});
+  rpc GetArrayChunked(StreamRequest) returns (stream Repeated{{ dtype | capitalize }});
 
   // Send an array as a simple stream of messages
-  rpc DownloadArrayStreaming(Empty) returns (stream {{ dtype | capitalize }});
+  rpc GetArrayStreaming(Empty) returns (stream {{ dtype | capitalize }});
 
   // Send a stream of byte payloads containing the array
-  rpc DownloadArrayBinaryChunked(StreamRequest) returns (stream BinaryChunk);
+  rpc GetArrayBinaryChunked(StreamRequest) returns (stream BinaryChunk);
 }
 
 // End Section {{ dtype | upper }}

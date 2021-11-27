@@ -26,7 +26,7 @@ class ServiceImpl final: public GrpcType::Service {
     public:
         ServiceImpl(): data__(), data_index__(0) {}
 
-        grpc::Status PopulateArray(
+        grpc::Status PostArray(
             grpc::ServerContext* context,
             const repeated_message_type* request,
             Empty *response
@@ -35,7 +35,7 @@ class ServiceImpl final: public GrpcType::Service {
             return grpc::Status::OK;
         }
 
-        grpc::Status ClearArrays(
+        grpc::Status DeleteArrays(
             grpc::ServerContext* context,
             const Empty* request,
             Empty* response
@@ -45,7 +45,7 @@ class ServiceImpl final: public GrpcType::Service {
             return grpc::Status::OK;
         }
 
-        grpc::Status DownloadArray(
+        grpc::Status GetArray(
             grpc::ServerContext* context,
             const Empty* request,
             repeated_message_type* response
@@ -59,7 +59,7 @@ class ServiceImpl final: public GrpcType::Service {
             return grpc::Status::OK;
         }
 
-        grpc::Status DownloadArrayStreaming(
+        grpc::Status GetArrayStreaming(
             grpc::ServerContext* context,
             const Empty* request,
             grpc::ServerWriter<single_message_type>* writer
@@ -75,7 +75,7 @@ class ServiceImpl final: public GrpcType::Service {
             return grpc::Status::OK;
         }
 
-        grpc::Status DownloadArrayChunked(
+        grpc::Status GetArrayChunked(
             grpc::ServerContext* context,
             const StreamRequest* request,
             grpc::ServerWriter<repeated_message_type>* writer
@@ -96,7 +96,7 @@ class ServiceImpl final: public GrpcType::Service {
             return grpc::Status::OK;
         }
 
-        grpc::Status DownloadArrayBinaryChunked(
+        grpc::Status GetArrayBinaryChunked(
             grpc::ServerContext* context,
             const StreamRequest* request,
             grpc::ServerWriter<BinaryChunk>* writer

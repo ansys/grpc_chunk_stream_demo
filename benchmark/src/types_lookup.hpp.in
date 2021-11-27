@@ -11,7 +11,7 @@ template <typename GrpcType> struct TypesLookup;
 
 {% for dtype, cpp_type in data_types %}
 template<>
-struct TypesLookup<SendArray{{ dtype | capitalize }}>{
+struct TypesLookup<ArrayService{{ dtype | capitalize }}>{
     using data_type = {{ cpp_type }};
     using single_message_type = {{ dtype | capitalize }};
     using repeated_message_type = Repeated{{ dtype | capitalize }};

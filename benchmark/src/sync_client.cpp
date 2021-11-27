@@ -18,33 +18,33 @@ int main() {
     );
 
     // create client
-    send_array::SendArrayClient<send_array::SendArraySfixed32> client(channel);
+    send_array::ArrayServiceClient<send_array::ArrayServiceSfixed32> client(channel);
 
-    using vec_type = std::vector<send_array::TypesLookup<send_array::SendArraySfixed32>::data_type>;
+    using vec_type = std::vector<send_array::TypesLookup<send_array::ArrayServiceSfixed32>::data_type>;
     vec_type vec = {1, 2, 3, 4};
-    client.PopulateArray(vec);
+    client.PostArray(vec);
 
     vec_type target;
     target.reserve(vec.size());
-    client.DownloadArray(target);
+    client.GetArray(target);
     for(std::size_t i=0; i < vec.size(); ++i) {
         std::cout << vec[i] << " " << target[i] << std::endl;
     }
     target.clear();
     target.reserve(vec.size());
-    client.DownloadArrayStreaming(target);
+    client.GetArrayStreaming(target);
     for(std::size_t i=0; i < vec.size(); ++i) {
         std::cout << vec[i] << " " << target[i] << std::endl;
     }
     target.clear();
     target.reserve(vec.size());
-    client.DownloadArrayChunked(target, 4);
+    client.GetArrayChunked(target, 4);
     for(std::size_t i=0; i < vec.size(); ++i) {
         std::cout << vec[i] << " " << target[i] << std::endl;
     }
     target.clear();
     target.reserve(vec.size());
-    client.DownloadArrayBinaryChunked(target, 3);
+    client.GetArrayBinaryChunked(target, 3);
     for(std::size_t i=0; i < vec.size(); ++i) {
         std::cout << vec[i] << " " << target[i] << std::endl;
     }

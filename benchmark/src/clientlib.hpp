@@ -13,7 +13,7 @@
 namespace send_array {
 
 template <typename GrpcType>
-class SendArrayClient {
+class ArrayServiceClient {
     private:
         using data_type = typename TypesLookup<GrpcType>::data_type;
         using single_message_type = typename TypesLookup<GrpcType>::single_message_type;
@@ -21,39 +21,39 @@ class SendArrayClient {
 
         std::unique_ptr<typename GrpcType::Stub> stub_;
     public:
-        SendArrayClient(
+        ArrayServiceClient(
             std::shared_ptr<grpc::Channel> channel
         ): stub_(GrpcType::NewStub(channel)){}
 
-        void PopulateArray(const std::vector<data_type> & array) {
+        void PostArray(const std::vector<data_type> & array) {
             repeated_message_type request;
             request.mutable_payload()->Add(array.cbegin(), array.cend());
             Empty response;
             grpc::ClientContext context;
-            auto status = stub_->PopulateArray(&context, request, &response);
+            auto status = stub_->PostArray(&context, request, &response);
         }
 
-        void ClearArrays() {
+        void DeleteArrays() {
             Empty request, response;
             grpc::ClientContext context;
-            auto status = stub_->ClearArrays(&context, request, &response);
+            auto status = stub_->DeleteArrays(&context, request, &response);
         }
 
-        void DownloadArray(std::vector<data_type>& target) {
+        void GetArray(std::vector<data_type>& target) {
             Empty request;
             grpc::ClientContext context;
             repeated_message_type response;
-            auto status = stub_->DownloadArray(&context, request, &response);
+            auto status = stub_->GetArray(&context, request, &response);
             for(const auto data: response.payload()) {
                 target.push_back(data);
             }
         }
 
-        void DownloadArrayStreaming(std::vector<data_type>& target) {
+        void GetArrayStreaming(std::vector<data_type>& target) {
             Empty request;
             grpc::ClientContext context;
             std::unique_ptr<grpc::ClientReader<single_message_type>> reader(
-                stub_->DownloadArrayStreaming(&context, request)
+                stub_->GetArrayStreaming(&context, request)
             );
 
             single_message_type message;
@@ -62,13 +62,13 @@ class SendArrayClient {
             }
         }
 
-        void DownloadArrayChunked(std::vector<data_type>& target, int32_t chunk_size) {
+        void GetArrayChunked(std::vector<data_type>& target, int32_t chunk_size) {
             StreamRequest request;
             request.set_chunk_size(chunk_size);
             grpc::ClientContext context;
 
             std::unique_ptr<grpc::ClientReader<repeated_message_type>> reader(
-                stub_->DownloadArrayChunked(&context, request)
+                stub_->GetArrayChunked(&context, request)
             );
 
             repeated_message_type chunk;
@@ -81,14 +81,14 @@ class SendArrayClient {
             }
         }
 
-        void DownloadArrayBinaryChunked(std::vector<data_type>& target, int32_t chunk_size) {
+        void GetArrayBinaryChunked(std::vector<data_type>& target, int32_t chunk_size) {
             auto raw_target = reinterpret_cast<std::string *> (&target);
             StreamRequest request;
             request.set_chunk_size(chunk_size);
             grpc::ClientContext context;
             BinaryChunk chunk;
             std::unique_ptr<grpc::ClientReader<BinaryChunk>> reader(
-                stub_->DownloadArrayBinaryChunked(&context, request)
+                stub_->GetArrayBinaryChunked(&context, request)
             );
             while(reader->Read(&chunk)) {
                 #pragma GCC diagnostic push
