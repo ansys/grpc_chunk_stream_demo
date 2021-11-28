@@ -1,9 +1,10 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 
-#include "send_array.pb.h"
-#include "send_array.grpc.pb.h"
+#include <send_array.pb.h>
+#include <send_array.grpc.pb.h>
 
 namespace send_array {
 
@@ -13,8 +14,10 @@ template <typename GrpcType> struct TypesLookup;
 template<>
 struct TypesLookup<ArrayService{{ dtype | capitalize }}>{
     using data_type = {{ cpp_type }};
+    using vector_type = std::vector<{{ cpp_type }}>;
     using single_message_type = {{ dtype | capitalize }};
     using repeated_message_type = Repeated{{ dtype | capitalize }};
+    constexpr static std::string_view type_id ="{{ dtype }}";
 };
 {% endfor %}
 

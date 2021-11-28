@@ -29,7 +29,7 @@ venv/.done: requirements.txt venv/bin/activate
 	conan remote add -f conancenter https://center.conan.io
 	@touch $@
 
-src/protos/send_array.proto src/types_lookup.hpp: % : render_templates.py venv/.done %.in
+src/protos/send_array.proto src/common/types_lookup.hpp src/client/sync_client.cpp: % : render_templates.py venv/.done %.in
 	@echo "### Rendering .proto file from template ###"
 	. $(VENV_ACTIVATE) && python $< $@.in $@
 
@@ -49,7 +49,7 @@ build/.cmake_done: build/.deps_done CMakeLists.txt **/CMakeLists.txt generated_s
 	cd build && cmake ..
 	@touch $@
 
-compile_project: build/.cmake_done build/.deps_done generated_src/.generate_done src/types_lookup.hpp
+compile_project: build/.cmake_done build/.deps_done generated_src/.generate_done src/common/types_lookup.hpp src/client/sync_client.cpp
 	@echo "### Compiling the C++ source ###"
 	$(MAKE) -C build
 

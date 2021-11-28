@@ -6,9 +6,9 @@
 #include <string>
 #include <grpcpp/grpcpp.h>
 
-#include "send_array.grpc.pb.h"
+#include <send_array.grpc.pb.h>
 
-#include "types_lookup.hpp"
+#include <types_lookup.hpp>
 
 
 namespace send_array {
@@ -69,7 +69,7 @@ class ServiceImpl final: public GrpcType::Service {
             single_message_type message;
             for(auto item: source_vec) {
                 message.set_payload(item);
-                writer->Write(message, grpc::WriteOptions().set_buffer_hint());
+                writer->Write(message);
             }
             ++data_index__;
             return grpc::Status::OK;
@@ -90,7 +90,7 @@ class ServiceImpl final: public GrpcType::Service {
             ) {
                 chunk.mutable_payload()->Clear();
                 chunk.mutable_payload()->Add(it, std::min(it + chunk_size, source_vec.cend()));
-                writer->Write(chunk, grpc::WriteOptions().set_buffer_hint());
+                writer->Write(chunk);
             }
             ++data_index__;
             return grpc::Status::OK;
@@ -104,19 +104,19 @@ class ServiceImpl final: public GrpcType::Service {
             auto chunk_size = request->chunk_size();
 
             const auto & source_vec = data__[data_index__];
-            auto start = reinterpret_cast<const std::string*>(&source_vec.front());
-            const auto end = reinterpret_cast<const std::string* const>(&source_vec.back());
+            auto ptr = reinterpret_cast<const char*>(&source_vec.front());
+            const auto end = reinterpret_cast<const char* const>(&source_vec.back() + 1);
 
             BinaryChunk chunk;
             // Add chunks that can be transmitted fully
-            while(start <= end - chunk_size) {
-                chunk.set_payload(start, chunk_size);
+            while(ptr < end - chunk_size) {
+                chunk.set_payload(ptr, chunk_size);
                 writer-> Write(chunk);
-                start += chunk_size;
+                ptr += chunk_size;
             }
             // Add last partial chunk
-            chunk.set_payload(start, end - start);
-            writer-> Write(chunk, grpc::WriteOptions().set_buffer_hint());
+            chunk.set_payload(ptr, (end - ptr));
+            writer-> Write(chunk);
 
             ++data_index__;
             return grpc::Status::OK;

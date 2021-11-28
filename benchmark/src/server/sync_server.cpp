@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <vector>
 #include <memory>
+#include <limits>
 
 #include <grpcpp/grpcpp.h>
 
@@ -23,6 +24,9 @@ void RunServer() {
     grpc::ServerBuilder builder;
     // Listen on the given address without any authentication mechanism.
     builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+
+    // Set maximum message size
+    builder.SetMaxReceiveMessageSize(std::numeric_limits<int>::max());
 
     // Register "service" as the instance through which we'll communicate with
     // clients. In this case it corresponds to an *synchronous* service.
