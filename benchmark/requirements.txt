@@ -3,3 +3,5 @@ numpy
 pandas
 seaborn
 jinja2
+jupyter
+notebook

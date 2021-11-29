@@ -65,5 +65,6 @@ clean:
 	rm -rf **/.*done
 	rm -f src/protos/*.proto
 	rm -f src/types_lookup.hpp
+	rm -f results/*.csv
 
 .PHONY: clean compile_project all
