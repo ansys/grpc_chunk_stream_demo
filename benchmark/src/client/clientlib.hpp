@@ -68,7 +68,7 @@ class ArrayServiceClient {
             }
         }
 
-        void GetArrayChunked(std::vector<data_type>& target, int32_t chunk_size) {
+        void GetArrayChunked(std::vector<data_type>& target, const int32_t chunk_size) {
             StreamRequest request;
             request.set_chunk_size(chunk_size);
             grpc::ClientContext context;
@@ -87,7 +87,7 @@ class ArrayServiceClient {
             }
         }
 
-        void GetArrayBinaryChunked(std::vector<data_type>& target, int32_t chunk_size) {
+        void GetArrayBinaryChunked(std::vector<data_type>& target, const int32_t chunk_size) {
             auto raw_target = reinterpret_cast<char *> (target.data());
             StreamRequest request;
             request.set_chunk_size(chunk_size);

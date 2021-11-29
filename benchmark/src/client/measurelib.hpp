@@ -123,11 +123,11 @@ void run_all_measurements(
     std::map<std::string, std::function<void(vector_type&, std::size_t)>> func_with_chunking = {
         {
             "GetArrayChunked",
-            [&client](auto & target_vec, std::size_t chunk_size){client.GetArrayChunked(target_vec, chunk_size);}
+            [&client](auto & target_vec, const std::size_t chunk_size){client.GetArrayChunked(target_vec, chunk_size);}
         },
         {
             "GetArrayBinaryChunked",
-            [&client](auto & target_vec, std::size_t chunk_size){client.GetArrayBinaryChunked(target_vec, chunk_size);},
+            [&client](auto & target_vec, const std::size_t chunk_size){client.GetArrayBinaryChunked(target_vec, chunk_size);},
         }
     };
 
@@ -169,16 +169,15 @@ void run_all_measurements(
         auto type_id = TypesLookup<GrpcType>::type_id;
         using data_type = typename TypesLookup<GrpcType>::data_type;
 
-
-        bool cancel_measurements = false;
         // We use 'chunk_size' in the outer loop, because runtimes should (up to measurement
         // error) increase monotonically when the 'vec_size' increases. This makes it more
         // suited to define a breaking condition, even if we need to enforce 'chunk_size <= vec_size'
         // in a counterintuitive way
         for(std::size_t chunk_size = 1 << 8; chunk_size <= max_vec_size; chunk_size <<= 1) {
+            bool cancel_measurements = false;
             for(std::size_t vec_size = chunk_size; vec_size <= max_vec_size; vec_size <<= 1) {
                 if(cancel_measurements) break;
-                auto array_getter = [pair, chunk_size](auto & vec){pair.second(vec, chunk_size);};
+                auto array_getter = [&pair, &chunk_size](auto & vec){pair.second(vec, chunk_size);};
                 for(std::size_t count = 0; count < num_measurements; ++count) {
                     auto runtime = measure_runtime(
                         client,
