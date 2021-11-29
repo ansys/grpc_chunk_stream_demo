@@ -73,21 +73,29 @@ struct Measurement {
     std::size_t num_repetitions;
     std::size_t vec_size;
     std::size_t chunk_size;
+    std::size_t type_size;
     std::string type_id;
     std::string method_id;
 
     Measurement()=default;
 };
 
+void print_measurement(Measurement m) {
+    std::cout <<
+    m.runtime << ", " << m.vec_size << ", " << m.chunk_size << ", " <<
+    m.type_size << ", " << m.type_id << ", " << m.method_id <<
+    std::endl;
+}
+
 template<typename GrpcType>
-std::vector<Measurement> run_all_measurements(
+void run_all_measurements(
     ArrayServiceClient<GrpcType>& client,
     std::size_t num_measurements,
     std::size_t num_repetitions_per_measurement,
     int64_t max_time_microseconds,
     std::size_t max_vec_size
 ) {
-    std::vector<Measurement> results;
+    std::cout << "runtime, num_repetitions, vec_size, chunk_size, type_id, method_id" << std::endl;
     using vector_type = typename TypesLookup<GrpcType>::vector_type;
 
     std::map<std::string, std::function<void(vector_type&)>> func_without_chunking = {
@@ -115,6 +123,7 @@ std::vector<Measurement> run_all_measurements(
     for(auto pair: func_without_chunking) {
         auto method_id = pair.first;
         auto type_id = TypesLookup<GrpcType>::type_id;
+        using data_type = typename TypesLookup<GrpcType>::data_type;
         cancel_measurements = false;
         for(std::size_t vec_size = 1; vec_size <= max_vec_size; vec_size <<=1 ) {
             if(cancel_measurements) break;
@@ -131,11 +140,12 @@ std::vector<Measurement> run_all_measurements(
                         std::fill(vec.begin(), vec.end(), 1);
                     }
                 );
-                results.push_back(Measurement {
+                print_measurement(Measurement {
                     runtime,
                     num_repetitions_per_measurement,
                     vec_size,
                     0,
+                    sizeof(data_type),
                     std::string(type_id),
                     method_id
                 });
@@ -146,10 +156,10 @@ std::vector<Measurement> run_all_measurements(
     for(auto pair: func_with_chunking) {
         auto method_id = pair.first;
         auto type_id = TypesLookup<GrpcType>::type_id;
+        using data_type = typename TypesLookup<GrpcType>::data_type;
         for(std::size_t vec_size = 1; vec_size <= max_vec_size; vec_size <<= 1) {
-            cancel_measurements = false;
-            for(std::size_t chunk_size = 1; chunk_size <= vec_size; chunk_size <<= 1) {
-                if(cancel_measurements) break;
+            for(std::size_t chunk_size = 1 << 8; chunk_size <= vec_size; chunk_size <<= 1) {
+                cancel_measurements = false;
                 auto array_getter = [pair, chunk_size](auto & vec){pair.second(vec, chunk_size);};
                 for(std::size_t count = 0; count < num_measurements; ++count) {
                     if(cancel_measurements) break;
@@ -164,11 +174,12 @@ std::vector<Measurement> run_all_measurements(
                             std::fill(vec.begin(), vec.end(), 1);
                         }
                     );
-                    results.push_back(Measurement {
+                    print_measurement(Measurement {
                         runtime,
                         num_repetitions_per_measurement,
                         vec_size,
                         chunk_size,
+                        sizeof(data_type),
                         std::string(type_id),
                         method_id
                     });
@@ -176,18 +187,6 @@ std::vector<Measurement> run_all_measurements(
                 }
             }
         }
-    }
-
-    return results;
-}
-
-void print_results(std::vector<Measurement>& res) {
-    std::cout << "runtime, num_repetitions, vec_size, chunk_size, type_id, method_id" << std::endl;
-    for(auto m: res) {
-        std::cout <<
-        m.runtime << ", " << m.vec_size << ", " << m.chunk_size <<
-        m.type_id << ", " << m.method_id << ", " <<
-        std::endl;
     }
 }
 
@@ -202,13 +201,9 @@ int main() {
         args
     );
 
-    std::vector<Measurement> all_results;
-    std::vector<Measurement> tmp_res;
 
     {% for dtype, _ in data_types %}
     ArrayServiceClient<ArrayService{{dtype | capitalize}}> client_{{dtype}}(channel);
-    tmp_res = run_all_measurements(client_{{dtype}}, 10, 3, 100000, 10000000);
-    all_results.insert(all_results.end(), tmp_res.begin(), tmp_res.end());
+    run_all_measurements(client_{{dtype}}, 10, 3, 10000, 2000000);
     {% endfor %}
-    print_results(all_results);
 }

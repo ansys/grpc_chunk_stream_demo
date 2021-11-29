@@ -13,7 +13,7 @@ VENV_ACTIVATE=venv/bin/activate
 
 SHELL := /bin/bash
 
-all: compile_project src/protos/send_array.proto
+all: compile_project src/protos/send_array.proto results/sync.csv
 
 venv/bin/activate:
 	@echo "### Creating Python virtual environment ###"
@@ -52,6 +52,10 @@ build/.cmake_done: build/.deps_done CMakeLists.txt **/CMakeLists.txt generated_s
 compile_project: build/.cmake_done build/.deps_done generated_src/.generate_done src/common/types_lookup.hpp src/client/sync_client.cpp
 	@echo "### Compiling the C++ source ###"
 	$(MAKE) -C build
+
+results/sync.csv: runner/run_sync.py compile_project
+	@echo "### Running synchronous tests ###"
+	. $(VENV_ACTIVATE) && python $<
 
 clean:
 	rm -rf venv
