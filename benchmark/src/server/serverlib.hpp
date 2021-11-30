@@ -111,7 +111,7 @@ class ServiceImpl final: public GrpcType::Service {
             // Add chunks that can be transmitted fully
             while(ptr < end - chunk_size) {
                 chunk.set_payload(ptr, chunk_size);
-                writer-> Write(chunk);
+                writer -> Write(chunk);
                 ptr += chunk_size;
             }
             // Add last partial chunk

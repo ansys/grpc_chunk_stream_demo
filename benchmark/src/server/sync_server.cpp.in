@@ -12,14 +12,10 @@
 void RunServer() {
     std::string server_address("0.0.0.0:50000");
     std::vector<std::unique_ptr<grpc::Service>> services;
-    services.push_back(std::make_unique<send_array::ServiceImpl<send_array::ArrayServiceDouble>>());
-    services.push_back(std::make_unique<send_array::ServiceImpl<send_array::ArrayServiceFloat>>());
-    services.push_back(std::make_unique<send_array::ServiceImpl<send_array::ArrayServiceInt32>>());
-    services.push_back(std::make_unique<send_array::ServiceImpl<send_array::ArrayServiceInt64>>());
-    services.push_back(std::make_unique<send_array::ServiceImpl<send_array::ArrayServiceSint32>>());
-    services.push_back(std::make_unique<send_array::ServiceImpl<send_array::ArrayServiceSint64>>());
-    services.push_back(std::make_unique<send_array::ServiceImpl<send_array::ArrayServiceSfixed32>>());
-    services.push_back(std::make_unique<send_array::ServiceImpl<send_array::ArrayServiceSfixed64>>());
+
+    {% for dtype, _ in data_types %}
+    services.push_back(std::make_unique<send_array::ServiceImpl<send_array::ArrayService{{ dtype | capitalize }}>>());
+    {% endfor %}
 
     grpc::ServerBuilder builder;
     // Listen on the given address without any authentication mechanism.

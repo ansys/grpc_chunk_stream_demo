@@ -17,7 +17,7 @@ struct TypesLookup<ArrayService{{ dtype | capitalize }}>{
     using vector_type = std::vector<{{ cpp_type }}>;
     using single_message_type = {{ dtype | capitalize }};
     using repeated_message_type = Repeated{{ dtype | capitalize }};
-    constexpr static std::string_view type_id ="{{ dtype }}";
+    constexpr static std::string_view type_id = "{{ dtype }}";
 };
 {% endfor %}
 

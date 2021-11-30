@@ -9,6 +9,7 @@
 #include <types_lookup.hpp>
 #include "send_array.grpc.pb.h"
 #include "clientlib.hpp"
+#include "omp.h"
 
 namespace send_array {
 
@@ -46,6 +47,7 @@ int64_t measure_runtime(
 
     // Run the measurement
     auto start = std::chrono::high_resolution_clock::now();
+#pragma omp parallel for
     for(std::size_t i = num_preheat; i < num_vectors; ++i) {
         array_getter(target_vectors[i]);
     }
@@ -107,7 +109,7 @@ void run_all_measurements(
     int64_t max_time_microseconds,
     std::size_t max_vec_size
 ) {
-
+    using data_type = typename TypesLookup<GrpcType>::data_type;
     using vector_type = typename TypesLookup<GrpcType>::vector_type;
 
     std::map<std::string, std::function<void(vector_type&)>> func_without_chunking = {
@@ -127,7 +129,7 @@ void run_all_measurements(
         },
         {
             "GetArrayBinaryChunked",
-            [&client](auto & target_vec, const std::size_t chunk_size){client.GetArrayBinaryChunked(target_vec, chunk_size);},
+            [&client](auto & target_vec, const std::size_t chunk_size){client.GetArrayBinaryChunked(target_vec, chunk_size * sizeof(data_type));},
         }
     };
 
