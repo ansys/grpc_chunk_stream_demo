@@ -31,6 +31,8 @@ venv/.done: requirements.txt venv/bin/activate
 
 RENDERED_TEMPLATE_FILES= src/protos/send_array.proto src/common/types_lookup.hpp src/client/sync_client.cpp src/server/sync_server.cpp src/client/sync_client_fixed_chunksize.cpp
 
+BIN_OUTPUT_FILES= build/bin/measure_memcpy build/bin/sync_client build/bin/sync_client_fixed_chunksize build/bin/sync_server
+
 $(RENDERED_TEMPLATE_FILES): % : render_templates.py venv/.done %.in
 	@echo "### Rendering input file from template ###"
 	. $(VENV_ACTIVATE) && python $< $@.in $@
@@ -46,17 +48,17 @@ generated_src/.generate_done: src/protos/send_array.proto build/.deps_done
 	$(PROTOC) --proto_path=$(PROTOS_DIR) --cpp_out=generated_src --grpc_out=generated_src --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN_PATH) send_array.proto
 	@touch $@
 
-compile_project: build/.deps_done generated_src/.generate_done $(RENDERED_TEMPLATE_FILES) CMakeLists.txt **/CMakeLists.txt
+$(BIN_OUTPUT_FILES) &: build/.deps_done generated_src/.generate_done $(RENDERED_TEMPLATE_FILES) CMakeLists.txt **/CMakeLists.txt
 	@echo "### Setting up CMake ###"
 	cd build && cmake ..
 	@echo "### Compiling the C++ source ###"
 	$(MAKE) -C build
 
-results/sync.csv results/threaded_client.csv: runner/run_measurements.py compile_project
+results/sync.csv results/threaded_client.csv: runner/run_measurements.py build/bin/sync_client build/bin/sync_server
 	@echo "### Running synchronous tests ###"
 	. $(VENV_ACTIVATE) && python $<
 
-results/memcpy.csv: compile_project
+results/memcpy.csv: build/bin/measure_memcpy
 	build/bin/measure_memcpy > $@
 
 clean:
