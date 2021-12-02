@@ -54,7 +54,7 @@ $(BIN_OUTPUT_FILES) &: build/.deps_done generated_src/.generate_done $(RENDERED_
 	@echo "### Compiling the C++ source ###"
 	$(MAKE) -C build
 
-results/sync.csv results/threaded_client.csv: runner/run_measurements.py build/bin/sync_client build/bin/sync_server
+results/sync.csv results/threaded_client.csv &: runner/run_measurements.py build/bin/sync_client build/bin/sync_server
 	@echo "### Running synchronous tests ###"
 	. $(VENV_ACTIVATE) && python $<
 
