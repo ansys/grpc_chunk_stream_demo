@@ -29,8 +29,10 @@ venv/.done: requirements.txt venv/bin/activate
 	conan remote add -f conancenter https://center.conan.io
 	@touch $@
 
-src/protos/send_array.proto src/common/types_lookup.hpp src/client/sync_client.cpp src/server/sync_server.cpp: % : render_templates.py venv/.done %.in
-	@echo "### Rendering .proto file from template ###"
+RENDERED_TEMPLATE_FILES= src/protos/send_array.proto src/common/types_lookup.hpp src/client/sync_client.cpp src/server/sync_server.cpp src/client/sync_client_fixed_chunksize.cpp
+
+$(RENDERED_TEMPLATE_FILES): % : render_templates.py venv/.done %.in
+	@echo "### Rendering input file from template ###"
 	. $(VENV_ACTIVATE) && python $< $@.in $@
 
 build/.deps_done: conanfile.txt venv/.done
@@ -44,12 +46,9 @@ generated_src/.generate_done: src/protos/send_array.proto build/.deps_done
 	$(PROTOC) --proto_path=$(PROTOS_DIR) --cpp_out=generated_src --grpc_out=generated_src --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN_PATH) send_array.proto
 	@touch $@
 
-build/.cmake_done: build/.deps_done CMakeLists.txt **/CMakeLists.txt generated_src/.generate_done
+compile_project: build/.deps_done generated_src/.generate_done $(RENDERED_TEMPLATE_FILES) CMakeLists.txt **/CMakeLists.txt
 	@echo "### Setting up CMake ###"
 	cd build && cmake ..
-	@touch $@
-
-compile_project: build/.cmake_done build/.deps_done generated_src/.generate_done src/common/types_lookup.hpp src/client/sync_client.cpp src/server/sync_server.cpp
 	@echo "### Compiling the C++ source ###"
 	$(MAKE) -C build
 

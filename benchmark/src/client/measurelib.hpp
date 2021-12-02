@@ -101,111 +101,165 @@ void print_measurement_header() {
     std::endl;
 }
 
+struct MeasurementParameters {
+    std::size_t num_measurements;
+    std::size_t num_repetitions_per_measurement;
+    int64_t max_time_microseconds;
+    std::size_t max_vec_size;
+};
+
 template<typename GrpcType>
-void run_all_measurements(
+void run_measurements_without_chunking(
     ArrayServiceClient<GrpcType>& client,
-    std::size_t num_measurements,
-    std::size_t num_repetitions_per_measurement,
-    int64_t max_time_microseconds,
-    std::size_t max_vec_size
+    std::function<void(typename TypesLookup<GrpcType>::vector_type&)> array_getter,
+    std::string method_id,
+    const MeasurementParameters & measurement_params,
+    std::size_t printed_chunk_size=0
 ) {
+    auto type_id = TypesLookup<GrpcType>::type_id;
     using data_type = typename TypesLookup<GrpcType>::data_type;
-    using vector_type = typename TypesLookup<GrpcType>::vector_type;
 
-    std::map<std::string, std::function<void(vector_type&)>> func_without_chunking = {
-        {
-            "GetArray",
-            [&client](auto & target_vec){client.GetArray(target_vec);}
-        },
-        {
-            "GetArrayStreaming",
-            [&client](auto & target_vec){client.GetArrayStreaming(target_vec);},
+    for(std::size_t vec_size = 1; vec_size <= measurement_params.max_vec_size; vec_size <<=1 ) {
+        int64_t fastest_runtime = std::numeric_limits<int64_t>::max();
+        for(std::size_t count = 0; count < measurement_params.num_measurements; ++count) {
+            auto runtime = measure_runtime(
+                client,
+                array_getter,
+                vec_size,
+                measurement_params.num_repetitions_per_measurement,
+                2,
+                [](auto & vec, std::size_t vec_size){
+                    vec.resize(vec_size);
+                    std::fill(vec.begin(), vec.end(), 1);
+                }
+            );
+            fastest_runtime = std::min(runtime, fastest_runtime);
+            print_measurement({
+                runtime,
+                measurement_params.num_repetitions_per_measurement,
+                vec_size,
+                printed_chunk_size,
+                sizeof(data_type),
+                std::string(type_id),
+                method_id
+            });
         }
-    };
-    std::map<std::string, std::function<void(vector_type&, std::size_t)>> func_with_chunking = {
-        {
-            "GetArrayChunked",
-            [&client](auto & target_vec, const std::size_t chunk_size){client.GetArrayChunked(target_vec, chunk_size);}
-        },
-        {
-            "GetArrayBinaryChunked",
-            [&client](auto & target_vec, const std::size_t chunk_size){client.GetArrayBinaryChunked(target_vec, chunk_size * sizeof(data_type));},
-        }
-    };
+        if(fastest_runtime > measurement_params.max_time_microseconds) break;
+    }
+}
 
+template<typename GrpcType>
+void run_measurements_with_chunking(
+    ArrayServiceClient<GrpcType>& client,
+    std::function<void(typename TypesLookup<GrpcType>::vector_type&, const std::size_t)> array_getter_with_chunking,
+    std::string method_id,
+    const MeasurementParameters & measurement_params
+) {
+    auto type_id = TypesLookup<GrpcType>::type_id;
+    using data_type = typename TypesLookup<GrpcType>::data_type;
 
-    for(auto pair: func_without_chunking) {
-        auto method_id = pair.first;
-        auto type_id = TypesLookup<GrpcType>::type_id;
-        using data_type = typename TypesLookup<GrpcType>::data_type;
-        bool cancel_measurements = false;
-        for(std::size_t vec_size = 1; vec_size <= max_vec_size; vec_size <<=1 ) {
-            if(cancel_measurements) break;
-            for(std::size_t count = 0; count < num_measurements; ++count) {
+    for(std::size_t vec_size = 1; vec_size <= measurement_params.max_vec_size; vec_size <<= 1) {
+
+        int64_t fastest_runtime = std::numeric_limits<int64_t>::max();
+        for(std::size_t chunk_size = std::min(vec_size, std::size_t(1)<<11); chunk_size <= vec_size; chunk_size <<= 1) {
+            auto array_getter = [&array_getter_with_chunking, &chunk_size](auto & vec){array_getter_with_chunking(vec, chunk_size);};
+            for(std::size_t count = 0; count < measurement_params.num_measurements; ++count) {
                 auto runtime = measure_runtime(
                     client,
-                    pair.second,
+                    array_getter,
                     vec_size,
-                    num_repetitions_per_measurement,
+                    measurement_params.num_repetitions_per_measurement,
                     2,
                     [](auto & vec, std::size_t vec_size){
                         vec.resize(vec_size);
                         std::fill(vec.begin(), vec.end(), 1);
                     }
                 );
+                fastest_runtime = std::min(runtime, fastest_runtime);
                 print_measurement({
                     runtime,
-                    num_repetitions_per_measurement,
+                    measurement_params.num_repetitions_per_measurement,
                     vec_size,
-                    0,
+                    chunk_size,
                     sizeof(data_type),
                     std::string(type_id),
                     method_id
                 });
-                if(runtime > max_time_microseconds) cancel_measurements = true;
             }
         }
+        if(fastest_runtime > measurement_params.max_time_microseconds) break;
     }
-    for(auto pair: func_with_chunking) {
-        auto method_id = pair.first;
-        auto type_id = TypesLookup<GrpcType>::type_id;
-        using data_type = typename TypesLookup<GrpcType>::data_type;
+}
 
-        // We use 'chunk_size' in the outer loop, because runtimes should (up to measurement
-        // error) increase monotonically when the 'vec_size' increases. This makes it more
-        // suited to define a breaking condition, even if we need to enforce 'chunk_size <= vec_size'
-        // in a counterintuitive way
-        for(std::size_t chunk_size = 1 << 8; chunk_size <= max_vec_size; chunk_size <<= 1) {
-            bool cancel_measurements = false;
-            for(std::size_t vec_size = chunk_size; vec_size <= max_vec_size; vec_size <<= 1) {
-                if(cancel_measurements) break;
-                auto array_getter = [&pair, &chunk_size](auto & vec){pair.second(vec, chunk_size);};
-                for(std::size_t count = 0; count < num_measurements; ++count) {
-                    auto runtime = measure_runtime(
-                        client,
-                        array_getter,
-                        vec_size,
-                        num_repetitions_per_measurement,
-                        2,
-                        [](auto & vec, std::size_t vec_size){
-                            vec.resize(vec_size);
-                            std::fill(vec.begin(), vec.end(), 1);
-                        }
-                    );
-                    print_measurement({
-                        runtime,
-                        num_repetitions_per_measurement,
-                        vec_size,
-                        chunk_size,
-                        sizeof(data_type),
-                        std::string(type_id),
-                        method_id
-                    });
-                    if(runtime > max_time_microseconds) cancel_measurements = true;
-                }
-            }
-        }
-    }
+template<typename GrpcType>
+void run_all_measurements(
+    ArrayServiceClient<GrpcType>& client,
+    const MeasurementParameters & measurement_params
+) {
+    using data_type = typename TypesLookup<GrpcType>::data_type;
+
+    run_measurements_without_chunking(
+        client,
+        [&client](auto & target_vec){client.GetArray(target_vec);},
+        "GetArray",
+        measurement_params
+    );
+    run_measurements_without_chunking(
+        client,
+        [&client](auto & target_vec){client.GetArrayStreaming(target_vec);},
+        "GetArrayStreaming",
+        measurement_params
+    );
+
+    run_measurements_with_chunking(
+        client,
+        [&client](auto & target_vec, const std::size_t chunk_size){client.GetArrayChunked(target_vec, chunk_size);},
+        "GetArrayChunked",
+        measurement_params
+    );
+    run_measurements_with_chunking(
+        client,
+        [&client](auto & target_vec, const std::size_t chunk_size){client.GetArrayBinaryChunked(target_vec, chunk_size * sizeof(data_type));},
+        "GetArrayBinaryChunked",
+        measurement_params
+    );
+}
+
+template<typename GrpcType>
+void run_fixed_chunksize_measurements(
+    ArrayServiceClient<GrpcType>& client,
+    const MeasurementParameters & measurement_params,
+    const std::size_t chunk_size
+) {
+    using data_type = typename TypesLookup<GrpcType>::data_type;
+
+    run_measurements_without_chunking(
+        client,
+        [&client](auto & target_vec){client.GetArray(target_vec);},
+        "GetArray",
+        measurement_params
+    );
+    run_measurements_without_chunking(
+        client,
+        [&client](auto & target_vec){client.GetArrayStreaming(target_vec);},
+        "GetArrayStreaming",
+        measurement_params
+    );
+
+    run_measurements_without_chunking(
+        client,
+        [&client, &chunk_size](auto & target_vec){client.GetArrayChunked(target_vec, chunk_size);},
+        "GetArrayChunked",
+        measurement_params,
+        chunk_size
+    );
+    run_measurements_without_chunking(
+        client,
+        [&client, &chunk_size](auto & target_vec){client.GetArrayBinaryChunked(target_vec, chunk_size * sizeof(data_type));},
+        "GetArrayBinaryChunked",
+        measurement_params,
+        chunk_size
+    );
 }
 
 } // end of namespace send_array

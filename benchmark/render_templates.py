@@ -17,7 +17,7 @@ for int_prefix_proto in [
 ]:
     for size in [
         32,
-        # 64,
+        64,
     ]:
         TYPES_LIST.append((f"{int_prefix_proto}{size}", f"int{size}_t"))
 

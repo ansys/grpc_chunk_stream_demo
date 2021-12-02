@@ -58,7 +58,7 @@ int main() {
         std::size_t size = std::size_t(1) << size_pow;
         duration = get_memcopy_duration<measured_type>(size, repetitions, [&](){return dist(random_engine);});
         std::cout << size * sizeof(measured_type) << "," << repetitions << "," << duration << std::endl;
-        if(duration > 1000000) {
+        if(duration > 1e9) {
             repetitions /= 2;
             if(repetitions == 0) {
                 break;
