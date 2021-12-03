@@ -27,7 +27,7 @@ int main() {
 
     std::minstd_rand random_engine;
 
-    MeasurementParameters measurment_params = {4, 10, 100000, 10000000};
+    MeasurementParameters measurment_params = {4, 10, 1000000, 10000000};
     // MeasurementParameters measurment_params = {2, 3, 10000, 1000000}; // TODO: reactivate full measurements
 
     print_measurement_header();
@@ -37,11 +37,12 @@ int main() {
     run_fixed_chunksize_measurements(client_{{dtype}}, measurment_params, std::size_t(1) << 19, [](){return 1;}, "const_1");
     {% if dtype in ('double', 'float') %}
     auto uniform_dist_{{dtype}} = std::uniform_real_distribution<{{ cpp_type }}>();
+    run_fixed_chunksize_measurements(client_{{dtype}}, measurment_params, std::size_t(1) << 19, [&](){return std::fmod(uniform_dist_{{dtype}}(random_engine), (1 << 10));}, "random_small");
     {% else %}
     auto uniform_dist_{{dtype}} = std::uniform_int_distribution<{{ cpp_type }}>();
+    run_fixed_chunksize_measurements(client_{{dtype}}, measurment_params, std::size_t(1) << 19, [&](){return uniform_dist_{{dtype}}(random_engine) % (1 << 10);}, "random_small");
     {% endif %}
     run_fixed_chunksize_measurements(client_{{dtype}}, measurment_params, std::size_t(1) << 19, [&](){return uniform_dist_{{dtype}}(random_engine);}, "uniform_random");
-    run_fixed_chunksize_measurements(client_{{dtype}}, measurment_params, std::size_t(1) << 19, [&](){return uniform_dist_{{dtype}}(random_engine) % (1 << 10);}, "random_small");
 
     {% endfor %}
 }

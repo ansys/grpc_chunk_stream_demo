@@ -7,12 +7,12 @@ import jinja2
 DIR_PATH = pathlib.Path(__file__).parent
 
 TYPES_LIST = [
-    # ("double", "double"),
-    # ("float", "float"),
+    ("double", "double"),
+    ("float", "float"),
 ]
 for int_prefix_proto in [
     "int",
-    # "sint",
+    "sint",
     "sfixed",
 ]:
     for size in [
