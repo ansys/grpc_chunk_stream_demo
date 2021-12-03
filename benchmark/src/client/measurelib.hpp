@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <vector>
 #include <chrono>
+#include <algorithm>
 #include <functional>
 
 #include <grpcpp/grpcpp.h>
@@ -20,7 +21,7 @@ int64_t measure_runtime(
     std::size_t vec_size,
     std::size_t num_repetitions,
     std::size_t num_preheat,
-    std::function<void(std::vector<typename TypesLookup<GrpcType>::data_type> &, std::size_t)> array_filler
+    std::function<typename TypesLookup<GrpcType>::data_type()> item_generator
 ) {
     using vector_type = typename TypesLookup<GrpcType>::vector_type;
 
@@ -30,7 +31,8 @@ int64_t measure_runtime(
     std::vector<vector_type> source_vectors(num_repetitions + num_preheat);
     client.DeleteArrays();
     for(auto &vec: source_vectors) {
-        array_filler(vec, vec_size);
+        vec.resize(vec_size);
+        std::generate(vec.begin(), vec.end(), item_generator);
         client.PostArray(vec);
     }
 
@@ -77,6 +79,7 @@ struct Measurement {
     std::size_t type_size;
     std::string type_id;
     std::string method_id;
+    std::string item_generator_id;
 };
 
 void print_measurement(Measurement m) {
@@ -87,9 +90,11 @@ void print_measurement(Measurement m) {
     m.chunk_size << "," <<
     m.type_size << "," <<
     m.type_id << "," <<
-    m.method_id <<
+    m.method_id << "," <<
+    m.item_generator_id <<
     std::endl;
 }
+
 void print_measurement_header() {
     std::cout <<
     "runtime" << "," <<
@@ -98,7 +103,8 @@ void print_measurement_header() {
     "chunk_size" << "," <<
     "type_size" << "," <<
     "type_id" << "," <<
-    "method_id" <<
+    "method_id" << "," <<
+    "item_generator_id" <<
     std::endl;
 }
 
@@ -115,6 +121,8 @@ void run_measurements_without_chunking(
     std::function<void(typename TypesLookup<GrpcType>::vector_type&, const array_id_type)> array_getter,
     std::string method_id,
     const MeasurementParameters & measurement_params,
+    std::function<typename TypesLookup<GrpcType>::data_type()> item_generator,
+    std::string item_generator_id,
     std::size_t printed_chunk_size=0
 ) {
     auto type_id = TypesLookup<GrpcType>::type_id;
@@ -129,10 +137,7 @@ void run_measurements_without_chunking(
                 vec_size,
                 measurement_params.num_repetitions_per_measurement,
                 2,
-                [](auto & vec, std::size_t vec_size){
-                    vec.resize(vec_size);
-                    std::fill(vec.begin(), vec.end(), 1);
-                }
+                item_generator
             );
             fastest_runtime = std::min(runtime, fastest_runtime);
             print_measurement({
@@ -142,7 +147,8 @@ void run_measurements_without_chunking(
                 printed_chunk_size,
                 sizeof(data_type),
                 std::string(type_id),
-                method_id
+                method_id,
+                item_generator_id
             });
         }
         if(fastest_runtime > measurement_params.max_time_microseconds) break;
@@ -154,7 +160,9 @@ void run_measurements_with_chunking(
     ArrayServiceClient<GrpcType>& client,
     std::function<void(typename TypesLookup<GrpcType>::vector_type&, const array_id_type, const std::size_t)> array_getter_with_chunking,
     std::string method_id,
-    const MeasurementParameters & measurement_params
+    const MeasurementParameters & measurement_params,
+    std::function<typename TypesLookup<GrpcType>::data_type()> item_generator,
+    std::string item_generator_id
 ) {
     auto type_id = TypesLookup<GrpcType>::type_id;
     using data_type = typename TypesLookup<GrpcType>::data_type;
@@ -171,10 +179,7 @@ void run_measurements_with_chunking(
                     vec_size,
                     measurement_params.num_repetitions_per_measurement,
                     2,
-                    [](auto & vec, std::size_t vec_size){
-                        vec.resize(vec_size);
-                        std::fill(vec.begin(), vec.end(), 1);
-                    }
+                    item_generator
                 );
                 fastest_runtime = std::min(runtime, fastest_runtime);
                 print_measurement({
@@ -184,7 +189,8 @@ void run_measurements_with_chunking(
                     chunk_size,
                     sizeof(data_type),
                     std::string(type_id),
-                    method_id
+                    method_id,
+                    item_generator_id
                 });
             }
         }
@@ -195,7 +201,9 @@ void run_measurements_with_chunking(
 template<typename GrpcType>
 void run_all_measurements(
     ArrayServiceClient<GrpcType>& client,
-    const MeasurementParameters & measurement_params
+    const MeasurementParameters & measurement_params,
+    std::function<typename TypesLookup<GrpcType>::data_type()> item_generator,
+    std::string item_generator_id
 ) {
     using data_type = typename TypesLookup<GrpcType>::data_type;
 
@@ -203,13 +211,17 @@ void run_all_measurements(
         client,
         [&client](auto & target_vec, auto array_id){client.GetArray(target_vec, array_id);},
         "GetArray",
-        measurement_params
+        measurement_params,
+        item_generator,
+        item_generator_id
     );
     run_measurements_without_chunking(
         client,
         [&client](auto & target_vec, auto array_id){client.GetArrayStreaming(target_vec, array_id);},
         "GetArrayStreaming",
-        measurement_params
+        measurement_params,
+        item_generator,
+        item_generator_id
     );
 
     run_measurements_with_chunking(
@@ -218,7 +230,9 @@ void run_all_measurements(
             client.GetArrayChunked(target_vec, array_id, chunk_size);
         },
         "GetArrayChunked",
-        measurement_params
+        measurement_params,
+        item_generator,
+        item_generator_id
     );
     run_measurements_with_chunking(
         client,
@@ -226,7 +240,9 @@ void run_all_measurements(
             client.GetArrayBinaryChunked(target_vec, array_id, chunk_size * sizeof(data_type));
         },
         "GetArrayBinaryChunked",
-        measurement_params
+        measurement_params,
+        item_generator,
+        item_generator_id
     );
 }
 
@@ -234,7 +250,9 @@ template<typename GrpcType>
 void run_fixed_chunksize_measurements(
     ArrayServiceClient<GrpcType>& client,
     const MeasurementParameters & measurement_params,
-    const std::size_t chunk_size
+    const std::size_t chunk_size,
+    std::function<typename TypesLookup<GrpcType>::data_type()> item_generator,
+    std::string item_generator_id
 ) {
     using data_type = typename TypesLookup<GrpcType>::data_type;
 
@@ -242,13 +260,17 @@ void run_fixed_chunksize_measurements(
         client,
         [&client](auto & target_vec, auto array_id){client.GetArray(target_vec, array_id);},
         "GetArray",
-        measurement_params
+        measurement_params,
+        item_generator,
+        item_generator_id
     );
     run_measurements_without_chunking(
         client,
         [&client](auto & target_vec, auto array_id){client.GetArrayStreaming(target_vec, array_id);},
         "GetArrayStreaming",
-        measurement_params
+        measurement_params,
+        item_generator,
+        item_generator_id
     );
 
     run_measurements_without_chunking(
@@ -258,6 +280,8 @@ void run_fixed_chunksize_measurements(
         },
         "GetArrayChunked",
         measurement_params,
+        item_generator,
+        item_generator_id,
         chunk_size
     );
     run_measurements_without_chunking(
@@ -267,6 +291,8 @@ void run_fixed_chunksize_measurements(
         },
         "GetArrayBinaryChunked",
         measurement_params,
+        item_generator,
+        item_generator_id,
         chunk_size
     );
 }

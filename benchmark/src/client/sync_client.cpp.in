@@ -31,6 +31,6 @@ int main() {
 
     {% for dtype, _ in data_types %}
     ArrayServiceClient<ArrayService{{dtype | capitalize}}> client_{{dtype}}(channel);
-    run_all_measurements(client_{{dtype}}, measurment_params);
+    run_all_measurements(client_{{dtype}}, measurment_params, [](){return 1;}, "const_1");
     {% endfor %}
 }
