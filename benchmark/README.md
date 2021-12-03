@@ -10,10 +10,23 @@ As such, architecturally sound interfaces were sacrificed where that would make 
 
 ## Building
 
+### Prerequisites
+
+- `gcc` version 7 or newer
+- `python3`
+- `cmake` version 3.16 or newer (older versions may work, but weren't tested)
+
+Networking tools (only required for some parts)
+- `tc`
+- `iperf`
+
+
+### Build steps
+
 On Linux, the whole project can be built with
 
 ```bash
-make
+make -j 1
 ```
 
 However, it's quite likely that you will encounter edge cases that the ``Makefile`` doesn't cover.

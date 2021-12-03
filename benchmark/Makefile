@@ -13,7 +13,10 @@ VENV_ACTIVATE=venv/bin/activate
 
 SHELL := /bin/bash
 
-all: compile_project src/protos/send_array.proto results/sync.csv results/threaded_client.csv results/memcpy.csv
+UNCONSTRAINED_RESULT_FILES= results/sync.csv results/threaded_client.csv
+CONSTRAINED_RESULT_FILES= results/rate_100mbit.csv results/delay_1ms.csv
+
+all: compile_project $(UNCONSTRAINED_RESULT_FILES) $(CONSTRAINED_RESULT_FILES)
 
 venv/bin/activate:
 	@echo "### Creating Python virtual environment ###"
@@ -31,8 +34,6 @@ venv/.done: requirements.txt venv/bin/activate
 
 RENDERED_TEMPLATE_FILES= src/protos/send_array.proto src/common/types_lookup.hpp src/client/sync_client.cpp src/server/sync_server.cpp src/client/sync_client_fixed_chunksize.cpp
 
-BIN_OUTPUT_FILES= build/bin/measure_memcpy build/bin/sync_client build/bin/sync_client_fixed_chunksize build/bin/sync_server
-
 $(RENDERED_TEMPLATE_FILES): % : render_templates.py venv/.done %.in
 	@echo "### Rendering input file from template ###"
 	. $(VENV_ACTIVATE) && python $< $@.in $@
@@ -40,7 +41,7 @@ $(RENDERED_TEMPLATE_FILES): % : render_templates.py venv/.done %.in
 build/.deps_done: conanfile.txt venv/.done
 	@echo "### Installing C++ dependencies ###"
 	mkdir -p build
-	. $(VENV_ACTIVATE) && conan install -if build --build=missing --profile=grpc_cpp_benchmark .
+	. $(VENV_ACTIVATE) && conan install -if build --build=* --profile=grpc_cpp_benchmark .
 	@touch $@
 
 generated_src/.generate_done: src/protos/send_array.proto build/.deps_done
@@ -48,15 +49,25 @@ generated_src/.generate_done: src/protos/send_array.proto build/.deps_done
 	$(PROTOC) --proto_path=$(PROTOS_DIR) --cpp_out=generated_src --grpc_out=generated_src --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN_PATH) send_array.proto
 	@touch $@
 
-$(BIN_OUTPUT_FILES) &: build/.deps_done generated_src/.generate_done $(RENDERED_TEMPLATE_FILES) CMakeLists.txt **/CMakeLists.txt
+BIN_OUTPUT_FILES= build/bin/measure_memcpy build/bin/sync_client build/bin/sync_client_fixed_chunksize build/bin/sync_server
+
+$(BIN_OUTPUT_FILES): compile_project;
+
+compile_project: build/.deps_done generated_src/.generate_done $(RENDERED_TEMPLATE_FILES) CMakeLists.txt **/CMakeLists.txt
 	@echo "### Setting up CMake ###"
 	cd build && cmake ..
 	@echo "### Compiling the C++ source ###"
 	$(MAKE) -C build
 
-results/sync.csv results/threaded_client.csv &: runner/run_measurements.py build/bin/sync_client build/bin/sync_server
-	@echo "### Running synchronous tests ###"
+$(UNCONSTRAINED_RESULT_FILES): run_unconstrained_measurements;
+run_unconstrained_measurements: runner/run_measurements.py build/bin/sync_client build/bin/sync_server
+	@echo "### Running unconstrained measurements ###"
 	. $(VENV_ACTIVATE) && python $<
+
+
+$(CONSTRAINED_RESULT_FILES): runner/run_constrained.py build/bin/sync_client_fixed_chunksize build/bin/sync_server
+	@echo "### Running constrained measurements ###"
+	. $(VENV_ACTIVATE) && python $< $@
 
 results/memcpy.csv: build/bin/measure_memcpy
 	build/bin/measure_memcpy > $@
@@ -71,4 +82,4 @@ clean:
 	rm -f src/types_lookup.hpp
 	rm -f results/*.csv
 
-.PHONY: clean compile_project all
+.PHONY: clean compile_project all run_constrained_measurements
