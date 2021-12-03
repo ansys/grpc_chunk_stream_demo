@@ -20,33 +20,41 @@ class ArrayServiceClient {
         using repeated_message_type = typename TypesLookup<GrpcType>::repeated_message_type;
 
         std::unique_ptr<typename GrpcType::Stub> stub_;
+        std::vector<array_id_type> array_ids_;
     public:
         ArrayServiceClient(
             std::shared_ptr<grpc::Channel> channel
-        ): stub_(GrpcType::NewStub(channel)){}
+        ): stub_(GrpcType::NewStub(channel)), array_ids_() {}
 
         void PostArray(const std::vector<data_type> & array) {
             repeated_message_type request;
             request.mutable_payload()->Add(array.cbegin(), array.cend());
-            Empty response;
+            ArrayID response;
             grpc::ClientContext context;
             auto status = stub_->PostArray(&context, request, &response);
             if(!status.ok()) {
                 throw std::runtime_error(status.error_message());
             }
+            array_ids_.emplace_back(response.value());
         }
 
         void DeleteArrays() {
-            Empty request, response;
-            grpc::ClientContext context;
-            auto status = stub_->DeleteArrays(&context, request, &response);
-            if(!status.ok()) {
-                throw std::runtime_error(status.error_message());
+            for(auto id: array_ids_) {
+                ArrayID request;
+                Empty response;
+                grpc::ClientContext context;
+                request.set_value(id);
+                auto status = stub_->DeleteArray(&context, request, &response);
+                if(!status.ok()) {
+                    throw std::runtime_error(status.error_message());
+                }
             }
+            array_ids_.clear();
         }
 
-        void GetArray(std::vector<data_type>& target) {
-            Empty request;
+        void GetArray(std::vector<data_type>& target, const array_id_type array_id) {
+            ArrayID request;
+            request.set_value(array_id);
             grpc::ClientContext context;
             repeated_message_type response;
             stub_->GetArray(&context, request, &response);
@@ -55,8 +63,9 @@ class ArrayServiceClient {
             }
         }
 
-        void GetArrayStreaming(std::vector<data_type>& target) {
-            Empty request;
+        void GetArrayStreaming(std::vector<data_type>& target, const array_id_type array_id) {
+            ArrayID request;
+            request.set_value(array_id);
             grpc::ClientContext context;
             std::unique_ptr<grpc::ClientReader<single_message_type>> reader(
                 stub_->GetArrayStreaming(&context, request)
@@ -68,8 +77,15 @@ class ArrayServiceClient {
             }
         }
 
-        void GetArrayChunked(std::vector<data_type>& target, const int32_t chunk_size) {
+        void GetArrayChunked(
+            std::vector<data_type>& target,
+            const array_id_type array_id,
+            const std::size_t chunk_size
+        ) {
             StreamRequest request;
+            ArrayID id;
+            id.set_value(array_id);
+            *request.mutable_array_id() = id;
             request.set_chunk_size(chunk_size);
             grpc::ClientContext context;
 
@@ -87,9 +103,16 @@ class ArrayServiceClient {
             }
         }
 
-        void GetArrayBinaryChunked(std::vector<data_type>& target, const int32_t chunk_size) {
+        void GetArrayBinaryChunked(
+            std::vector<data_type>& target,
+            const array_id_type array_id,
+            const std::size_t chunk_size
+        ) {
             auto raw_target = reinterpret_cast<char *> (target.data());
             StreamRequest request;
+            ArrayID id;
+            id.set_value(array_id);
+            *request.mutable_array_id() = id;
             request.set_chunk_size(chunk_size);
             grpc::ClientContext context;
             BinaryChunk chunk;
@@ -105,6 +128,10 @@ class ArrayServiceClient {
                 // possibly at the last iteration, when it no longer matters.
                 raw_target += chunk_size;
             }
+        }
+
+        const std::vector<array_id_type> get_array_ids() const {
+            return array_ids_;
         }
 };
 

@@ -4,14 +4,20 @@
 syntax = "proto3";
 package send_array;
 
-message Empty {}
+message Empty {
+}
+
+message ArrayID {
+  int32 value = 1;
+}
 
 message BinaryChunk{
   bytes payload = 1;
 }
 
 message StreamRequest{
-  int32 chunk_size = 1;
+  ArrayID array_id = 1;
+  int32 chunk_size = 2;
 }
 
 {% for dtype, _ in data_types %}
@@ -27,19 +33,19 @@ message {{ dtype | capitalize }}{
 
 service ArrayService{{ dtype | capitalize }}{
   // Create an array within the server
-  rpc PostArray(Repeated{{ dtype | capitalize }}) returns (Empty);
+  rpc PostArray(Repeated{{ dtype | capitalize }}) returns (ArrayID);
 
   // Delete all arrays on the server
-  rpc DeleteArrays(Empty) returns (Empty);
+  rpc DeleteArray(ArrayID) returns (Empty);
 
   // Send the array to the client using repeated items
-  rpc GetArray(Empty) returns (Repeated{{ dtype | capitalize }});
+  rpc GetArray(ArrayID) returns (Repeated{{ dtype | capitalize }});
 
   // Send an array by combining streaming and repeated items
   rpc GetArrayChunked(StreamRequest) returns (stream Repeated{{ dtype | capitalize }});
 
   // Send an array as a simple stream of messages
-  rpc GetArrayStreaming(Empty) returns (stream {{ dtype | capitalize }});
+  rpc GetArrayStreaming(ArrayID) returns (stream {{ dtype | capitalize }});
 
   // Send a stream of byte payloads containing the array
   rpc GetArrayBinaryChunked(StreamRequest) returns (stream BinaryChunk);

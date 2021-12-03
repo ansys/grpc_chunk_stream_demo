@@ -16,7 +16,7 @@ namespace send_array {
 template<typename GrpcType>
 int64_t measure_runtime(
     ArrayServiceClient<GrpcType>& client,
-    std::function<void(std::vector<typename TypesLookup<GrpcType>::data_type> &)> array_getter,
+    std::function<void(std::vector<typename TypesLookup<GrpcType>::data_type> &, const array_id_type)> array_getter,
     std::size_t vec_size,
     std::size_t num_repetitions,
     std::size_t num_preheat,
@@ -39,17 +39,18 @@ int64_t measure_runtime(
     for(auto &vec: target_vectors) {
         vec.reserve(vec_size);
     }
+    auto array_ids = client.get_array_ids();
 
     // Preheat the connection
     for(std::size_t i = 0; i < num_preheat; ++i) {
-        array_getter(target_vectors[i]);
+        array_getter(target_vectors[i], array_ids[i]);
     }
 
     // Run the measurement
     auto start = std::chrono::high_resolution_clock::now();
 #pragma omp parallel for
     for(std::size_t i = num_preheat; i < num_vectors; ++i) {
-        array_getter(target_vectors[i]);
+        array_getter(target_vectors[i], array_ids[i]);
     }
     auto stop = std::chrono::high_resolution_clock::now();
     int64_t duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count();
@@ -80,23 +81,23 @@ struct Measurement {
 
 void print_measurement(Measurement m) {
     std::cout <<
-    m.runtime << ", " <<
-    m.num_repetitions << ", " <<
-    m.vec_size << ", " <<
-    m.chunk_size << ", " <<
-    m.type_size << ", " <<
-    m.type_id << ", " <<
+    m.runtime << "," <<
+    m.num_repetitions << "," <<
+    m.vec_size << "," <<
+    m.chunk_size << "," <<
+    m.type_size << "," <<
+    m.type_id << "," <<
     m.method_id <<
     std::endl;
 }
 void print_measurement_header() {
     std::cout <<
-    "runtime" << ", " <<
-    "num_repetitions" << ", " <<
-    "vec_size" << ", " <<
-    "chunk_size" << ", " <<
-    "type_size" << ", " <<
-    "type_id" << ", " <<
+    "runtime" << "," <<
+    "num_repetitions" << "," <<
+    "vec_size" << "," <<
+    "chunk_size" << "," <<
+    "type_size" << "," <<
+    "type_id" << "," <<
     "method_id" <<
     std::endl;
 }
@@ -111,7 +112,7 @@ struct MeasurementParameters {
 template<typename GrpcType>
 void run_measurements_without_chunking(
     ArrayServiceClient<GrpcType>& client,
-    std::function<void(typename TypesLookup<GrpcType>::vector_type&)> array_getter,
+    std::function<void(typename TypesLookup<GrpcType>::vector_type&, const array_id_type)> array_getter,
     std::string method_id,
     const MeasurementParameters & measurement_params,
     std::size_t printed_chunk_size=0
@@ -151,7 +152,7 @@ void run_measurements_without_chunking(
 template<typename GrpcType>
 void run_measurements_with_chunking(
     ArrayServiceClient<GrpcType>& client,
-    std::function<void(typename TypesLookup<GrpcType>::vector_type&, const std::size_t)> array_getter_with_chunking,
+    std::function<void(typename TypesLookup<GrpcType>::vector_type&, const array_id_type, const std::size_t)> array_getter_with_chunking,
     std::string method_id,
     const MeasurementParameters & measurement_params
 ) {
@@ -161,8 +162,8 @@ void run_measurements_with_chunking(
     for(std::size_t vec_size = 1; vec_size <= measurement_params.max_vec_size; vec_size <<= 1) {
 
         int64_t fastest_runtime = std::numeric_limits<int64_t>::max();
-        for(std::size_t chunk_size = std::min(vec_size, std::size_t(1)<<11); chunk_size <= vec_size; chunk_size <<= 1) {
-            auto array_getter = [&array_getter_with_chunking, &chunk_size](auto & vec){array_getter_with_chunking(vec, chunk_size);};
+        for(std::size_t chunk_size = std::min(std::size_t(vec_size), std::size_t(1)<<11); chunk_size <= vec_size; chunk_size <<= 1) {
+            auto array_getter = [&array_getter_with_chunking, &chunk_size](auto & vec, auto array_id){array_getter_with_chunking(vec, array_id, chunk_size);};
             for(std::size_t count = 0; count < measurement_params.num_measurements; ++count) {
                 auto runtime = measure_runtime(
                     client,
@@ -200,26 +201,30 @@ void run_all_measurements(
 
     run_measurements_without_chunking(
         client,
-        [&client](auto & target_vec){client.GetArray(target_vec);},
+        [&client](auto & target_vec, auto array_id){client.GetArray(target_vec, array_id);},
         "GetArray",
         measurement_params
     );
     run_measurements_without_chunking(
         client,
-        [&client](auto & target_vec){client.GetArrayStreaming(target_vec);},
+        [&client](auto & target_vec, auto array_id){client.GetArrayStreaming(target_vec, array_id);},
         "GetArrayStreaming",
         measurement_params
     );
 
     run_measurements_with_chunking(
         client,
-        [&client](auto & target_vec, const std::size_t chunk_size){client.GetArrayChunked(target_vec, chunk_size);},
+        [&client](auto & target_vec, auto array_id, const std::size_t chunk_size){
+            client.GetArrayChunked(target_vec, array_id, chunk_size);
+        },
         "GetArrayChunked",
         measurement_params
     );
     run_measurements_with_chunking(
         client,
-        [&client](auto & target_vec, const std::size_t chunk_size){client.GetArrayBinaryChunked(target_vec, chunk_size * sizeof(data_type));},
+        [&client](auto & target_vec, auto array_id, const std::size_t chunk_size){
+            client.GetArrayBinaryChunked(target_vec, array_id, chunk_size * sizeof(data_type));
+        },
         "GetArrayBinaryChunked",
         measurement_params
     );
@@ -235,27 +240,31 @@ void run_fixed_chunksize_measurements(
 
     run_measurements_without_chunking(
         client,
-        [&client](auto & target_vec){client.GetArray(target_vec);},
+        [&client](auto & target_vec, auto array_id){client.GetArray(target_vec, array_id);},
         "GetArray",
         measurement_params
     );
     run_measurements_without_chunking(
         client,
-        [&client](auto & target_vec){client.GetArrayStreaming(target_vec);},
+        [&client](auto & target_vec, auto array_id){client.GetArrayStreaming(target_vec, array_id);},
         "GetArrayStreaming",
         measurement_params
     );
 
     run_measurements_without_chunking(
         client,
-        [&client, &chunk_size](auto & target_vec){client.GetArrayChunked(target_vec, chunk_size);},
+        [&client, &chunk_size](auto & target_vec, auto array_id){
+            client.GetArrayChunked(target_vec, array_id, chunk_size);
+        },
         "GetArrayChunked",
         measurement_params,
         chunk_size
     );
     run_measurements_without_chunking(
         client,
-        [&client, &chunk_size](auto & target_vec){client.GetArrayBinaryChunked(target_vec, chunk_size * sizeof(data_type));},
+        [&client, &chunk_size](auto & target_vec, auto array_id){
+            client.GetArrayBinaryChunked(target_vec, array_id, chunk_size * sizeof(data_type));
+        },
         "GetArrayBinaryChunked",
         measurement_params,
         chunk_size

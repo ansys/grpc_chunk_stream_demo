@@ -2,8 +2,10 @@
 
 #include <cstdint>
 #include <cstddef>
+#include <unordered_map>
 #include <vector>
 #include <string>
+#include <atomic>
 #include <grpcpp/grpcpp.h>
 
 #include <send_array.grpc.pb.h>
@@ -20,58 +22,57 @@ class ServiceImpl final: public GrpcType::Service {
         using single_message_type = typename TypesLookup<GrpcType>::single_message_type;
         using repeated_message_type = typename TypesLookup<GrpcType>::repeated_message_type;
 
-        std::vector<std::vector<data_type>> data__;
-        std::size_t data_index__;
+        std::unordered_map<array_id_type, std::vector<data_type>> data__;
+        std::atomic<array_id_type> id_counter__;
 
     public:
-        ServiceImpl(): data__(), data_index__(0) {}
+        ServiceImpl(): data__(), id_counter__(0) {}
 
         grpc::Status PostArray(
             grpc::ServerContext* context,
             const repeated_message_type* request,
-            Empty *response
+            ArrayID *response
         ) override {
-            data__.emplace_back(request->payload().cbegin(), request->payload().cend());
+            auto id = id_counter__++;
+            response->set_value(id);
+            data__.emplace(id, std::vector<data_type>(request->payload().cbegin(), request->payload().cend()));
             return grpc::Status::OK;
         }
 
-        grpc::Status DeleteArrays(
+        grpc::Status DeleteArray(
             grpc::ServerContext* context,
-            const Empty* request,
+            const ArrayID* request,
             Empty* response
         ) override {
-            data__.clear();
-            data_index__ = 0;
+            data__.erase(request->value());
             return grpc::Status::OK;
         }
 
         grpc::Status GetArray(
             grpc::ServerContext* context,
-            const Empty* request,
+            const ArrayID* request,
             repeated_message_type* response
         ) override {
-            const auto & source_vec = data__[data_index__];
+            const auto & source_vec = data__.at(request->value());
             response->mutable_payload()->Add(
                 source_vec.cbegin(),
                 source_vec.cend()
             );
-            ++data_index__;
             return grpc::Status::OK;
         }
 
         grpc::Status GetArrayStreaming(
             grpc::ServerContext* context,
-            const Empty* request,
+            const ArrayID* request,
             grpc::ServerWriter<single_message_type>* writer
         ) override {
-            const auto & source_vec = data__[data_index__];
+            const auto & source_vec = data__.at(request->value());
 
             single_message_type message;
             for(auto item: source_vec) {
                 message.set_payload(item);
                 writer->Write(message);
             }
-            ++data_index__;
             return grpc::Status::OK;
         }
 
@@ -82,7 +83,7 @@ class ServiceImpl final: public GrpcType::Service {
         ) override {
             auto chunk_size = request->chunk_size();
             repeated_message_type chunk;
-            const auto & source_vec = data__[data_index__];
+            const auto & source_vec = data__.at(request->array_id().value());
             for(
                 auto it=source_vec.cbegin();
                 it < source_vec.cend();
@@ -92,7 +93,6 @@ class ServiceImpl final: public GrpcType::Service {
                 chunk.mutable_payload()->Add(it, std::min(it + chunk_size, source_vec.cend()));
                 writer->Write(chunk);
             }
-            ++data_index__;
             return grpc::Status::OK;
         }
 
@@ -103,7 +103,7 @@ class ServiceImpl final: public GrpcType::Service {
         ) override {
             auto chunk_size = request->chunk_size();
 
-            const auto & source_vec = data__[data_index__];
+            const auto & source_vec = data__.at(request->array_id().value());
             auto ptr = reinterpret_cast<const char*>(&source_vec.front());
             const auto end = reinterpret_cast<const char* const>(&source_vec.back() + 1);
 
@@ -118,7 +118,6 @@ class ServiceImpl final: public GrpcType::Service {
             chunk.set_payload(ptr, (end - ptr));
             writer-> Write(chunk);
 
-            ++data_index__;
             return grpc::Status::OK;
         }
 };
