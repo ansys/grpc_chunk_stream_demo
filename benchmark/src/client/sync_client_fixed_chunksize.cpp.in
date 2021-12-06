@@ -5,6 +5,7 @@
 #include <random>
 #include <functional>
 
+// #include <grpc/compression.h>
 #include <grpcpp/grpcpp.h>
 
 #include <types_lookup.hpp>
@@ -13,10 +14,15 @@
 
 using namespace send_array;
 
-int main() {
+int main(int argc, char *argv[]) {
     grpc::ChannelArguments args;
     args.SetMaxReceiveMessageSize(-1);
     args.SetString(GRPC_ARG_OPTIMIZATION_TARGET, "throughput");
+
+    if(argc > 1) {
+        int compression_level = std::stoi(argv[1]);
+        args.SetInt(GRPC_COMPRESSION_CHANNEL_DEFAULT_LEVEL, compression_level);
+    }
 
     std::string target_str = "localhost:50000";
     auto channel = grpc::CreateCustomChannel(

@@ -14,7 +14,7 @@ VENV_ACTIVATE=venv/bin/activate
 SHELL := /bin/bash
 
 UNCONSTRAINED_RESULT_FILES= results/sync.csv results/threaded_client.csv
-CONSTRAINED_RESULT_FILES= results/rate_100mbit.csv results/delay_1ms.csv
+CONSTRAINED_RESULT_FILES= results/rate_100mbit.csv results/delay_1ms.csv  results/compressionlevel_1_rate_100mbit.csv results/compressionlevel_1_delay_1ms.csv results/compressionlevel_1_rate_1000mbit_delay_1ms.csv results/compressionlevel_2_rate_100mbit.csv results/compressionlevel_2_delay_1ms.csv  results/compressionlevel_2_rate_1000mbit_delay_1ms.csv
 
 all: compile_project $(UNCONSTRAINED_RESULT_FILES) $(CONSTRAINED_RESULT_FILES)
 
