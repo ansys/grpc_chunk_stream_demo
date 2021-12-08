@@ -5,7 +5,6 @@
 #include <random>
 #include <functional>
 
-// #include <grpc/compression.h>
 #include <grpcpp/grpcpp.h>
 
 #include <types_lookup.hpp>
@@ -21,6 +20,7 @@ int main(int argc, char *argv[]) {
 
     if(argc > 1) {
         int compression_level = std::stoi(argv[1]);
+        args.SetCompressionAlgorithm(grpc_compression_algorithm::GRPC_COMPRESS_GZIP);
         args.SetInt(GRPC_COMPRESSION_CHANNEL_DEFAULT_LEVEL, compression_level);
     }
 
