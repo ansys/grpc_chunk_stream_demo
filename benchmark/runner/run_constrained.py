@@ -24,7 +24,6 @@ if __name__ == '__main__':
     # out_dir = pathlib.Path(__file__).parent.parent / "results"
     server_exe = str(bin_dir / "sync_server")
     client_exe = str(bin_dir / "sync_client_fixed_chunksize")
-    server_proc = subprocess.Popen([server_exe])
 
     out_path = sys.argv[1]
     out_filename_base = out_path.split('/')[-1].split(".")[0]
@@ -33,6 +32,9 @@ if __name__ == '__main__':
         cmdline_args = [cmp_level_str]
     else:
         cmdline_args = []
+
+    server_proc = subprocess.Popen([server_exe] + cmdline_args)
+
     netem_options = out_filename_base.split("_")
     try:
         env_no_threading = os.environ.copy()
