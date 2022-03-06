@@ -1,0 +1,8 @@
+conan
+numpy
+pandas
+matplotlib
+seaborn
+jinja2
+jupyter
+notebook
