@@ -24,7 +24,7 @@ venv/.done: requirements.txt venv/bin/activate
 	. $(VENV_ACTIVATE) && \
 	pip install -U pip && \
 	pip install -r requirements.txt && \
-	conan profile new --detect --force grpc_cpp_benchmark && \
+	conan profile new --detect --force grpc_demo && \
 	conan profile update settings.compiler.libcxx=libstdc++11 grpc_cpp_benchmark && \
 	conan remote add -f conancenter https://center.conan.io
 	@touch $@
@@ -35,9 +35,14 @@ build/.deps_done: conanfile.txt venv/.done
 	. $(VENV_ACTIVATE) && conan install -if build --build=* --profile=grpc_demo .
 	@touch $@
 
-generated_src/.generate_done: src/protos/send_array.proto build/.deps_done
+generated_src/.generate_done: src/protos/chunkdemo.proto build/.deps_done
 	@echo "### Compiling .proto file to C++ source ###"
-	$(PROTOC) --proto_path=$(PROTOS_DIR) --cpp_out=generated_src --grpc_out=generated_src --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN_PATH) chunkdemo.proto
+	$(PROTOC) \
+      --proto_path=$(PROTOS_DIR) \
+      --cpp_out=generated_src \
+      --grpc_out=generated_src \
+      --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN_PATH) \
+      chunkdemo.proto
 	@touch $@
 
 BIN_OUTPUT_FILES= build/bin/demo_client build/bin/demo_server
@@ -53,7 +58,7 @@ compile_project: build/.deps_done generated_src/.generate_done CMakeLists.txt **
 clean:
 	rm -rf venv
 	rm -rf build
-	rm -rf generated_src/*.cc
+	rm -rf generated_src/*
 	rm -rf **/.*done
 
-.PHONY: clean compile_project all run_constrained_measurements
+.PHONY: clean compile_project all

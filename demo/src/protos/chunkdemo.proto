@@ -42,5 +42,4 @@ service ChunkDemo{
   // Send the array to the client using repeated ints
   rpc DownloadArraySlow(StreamRequest) returns (RepeatedInts);
 
-
 }
